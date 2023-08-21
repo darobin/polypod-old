@@ -3,8 +3,6 @@
 
 **THIS IS EXPERIMENTAL. DO NOT EXPECT ANYTHING TO WORK, OR EVEN MAKE SENSE.**
 
-![polypody](polypody.jpg)
-
 The thesis is that we need a system that:
 
 - Is a *user agent* but can do more than a browser, notably be connected persistently and
@@ -31,3 +29,5 @@ I am playing with primitives from:
 - [UCANs](https://ucan.xyz/)
 
 and other stuff that's too new for anyone to know how it'll play out.
+
+![polypody](polypody.jpg)
