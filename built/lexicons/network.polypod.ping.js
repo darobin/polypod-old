@@ -1,5 +1,3 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
 // XXX gotta be a Lexicon type
 var ping = {
     lexicon: 1,
@@ -17,4 +15,4 @@ var ping = {
         },
     },
 };
-exports.default = ping;
+export default ping;
