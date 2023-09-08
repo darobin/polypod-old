@@ -11,5 +11,5 @@
   - [ ] don't support did:web
   - [ ] createSession and admin routes
 
-- [ ] Move to a monorepo with server, client, protocols
+- [ ] Move to a monorepo with server, client, protocols, and deploy (uses the server+protocols)
 - [ ] Make the ping protocol a WASM installable protocol
