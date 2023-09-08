@@ -5,6 +5,7 @@
   "description": "Polypod",
   "author": "Robin Berjon <robin@berjon.com>",
   "scripts": {
+    "test": "mocha",
     "watch": "concurrently npm:watch-ts npm:watch-js",
     "watch-ts": "tsc --watch",
     "watch-js": "node --watch built/index.js"
@@ -30,8 +31,10 @@
   },
   "devDependencies": {
     "@types/node": "^20.5.9",
+    "axios": "^1.5.0",
     "concurrently": "^8.2.1",
     "eslint": "^8.26.0",
+    "mocha": "^10.2.0",
     "typescript": "^5.2.2"
   },
   "dependencies": {
