@@ -18,9 +18,9 @@
     - [ ] same wrapping, but need to add more access
     - [ ] test!
 - [ ] Milestone: WASM WASM WASM
-  - [ ] setup AssemblyScript
-  - [ ] ping
-  - [ ] hsv
+  - [ ] setup AssemblyScript (I guess you build .as)
+  - [ ] port ping
+  - [ ] port hsv
 
 
 - [ ] Move to a monorepo with server, client, protocols, and deploy (uses the server+protocols)
