@@ -1,4 +1,3 @@
-// XXX gotta be a Lexicon type
 var ping = {
     lexicon: 1,
     id: 'network.polypod.ping',

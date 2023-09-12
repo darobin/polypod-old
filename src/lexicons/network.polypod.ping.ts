@@ -1,6 +1,7 @@
 
-// XXX gotta be a Lexicon type
-const ping = {
+import { LexiconDoc } from "@atproto/lexicon";
+
+const ping: LexiconDoc = {
   lexicon: 1,
   id: 'network.polypod.ping',
   defs: {
