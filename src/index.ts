@@ -1,88 +1,135 @@
 
 import express from 'express';
-import { mkdir } from 'fs/promises';
-import { join } from 'path';
+import http from 'http';
+import events from 'events';
 import * as xrpc from '@atproto/xrpc-server';
 import { Secp256k1Keypair, randomStr } from '@atproto/crypto';
 import { ServerConfig } from '@atproto/pds';
 import { Client as PlcClient } from '@did-plc/lib';
+import { Database, PlcServer } from '@did-plc/server';
+import { createHttpTerminator, HttpTerminator } from 'http-terminator';
 
-import makeRel from './lib/rel.js';
-
+import AppContext from './lib/context.js';
 import pingLexicon from './lexicons/network.polypod.ping.js';
 
-const rel = makeRel(import.meta.url);
-const storeDir = rel('../scratch');
-const sqlitePath = join(storeDir, 'pds.sqlite');
-const blobDir = join(storeDir, 'blob-store');
+export class PolypodServer {
+  public ctx: AppContext;
+  public app: express.Application;
+  public server?: http.Server;
+  private terminator?: HttpTerminator;
+
+  constructor (opts: { ctx: AppContext; app: express.Application }) {
+    this.ctx = opts.ctx;
+    this.app = opts.app;
+  }
+
+  static async create (opts: {
+    plcPort?: number,
+    pgURL?: string,
+  } = {}): Promise<PolypodServer> {
+    process.env.TLS = '0'; // otherwise this will force the scheme to https
+    const ctx = new AppContext({
+      plcPort: opts.plcPort,
+      pgURL: opts.pgURL,
+    });
+
+    // first, set up the PLC server which we run embedded and separate from the Bluesky sandbox
+    const plcDB = Database.postgres({ url: ctx.pgURL });
+    await plcDB.migrateToLatestOrThrow();
+    ctx.plc = PlcServer.create({ db: plcDB, port: ctx.plcPort });
+
+    const app = express();
+    app.use(express.json({ limit: '100kb' }))
+    // app.use(cors())
+    // app.use(loggerMiddleware)
+    // app.use('/', createRouter(ctx))
+    // app.use(error.handler)
+
+    return new PolypodServer({
+      ctx,
+      app,
+    });
+  }
+
+  async start (): Promise<http.Server> {
+    await this.ctx.plc.start();
+    console.warn(`PLC server running on port ${this.ctx.plcPort}.`);
+    // XXX
+    // don't .start() the PDS, mount it and start ourselves
+
+    const server = this.app.listen(this.ctx.port);
+    this.server = server;
+    this.terminator = createHttpTerminator({ server });
+    await events.once(server, 'listening');
+    return server;
+  }
+
+  async destroy () {
+    await this.ctx.plc.destroy();
+    await this.terminator?.terminate();
+    // await this.ctx.db.close()
+  }
+}
 
 (async function () {
-  process.env.TLS = '0'; // otherwise this will force the scheme to https
-  process.env.LOG_ENABLED = 'true';
-  process.env.LOG_LEVEL = 'debug';
-  process.env.LOG_DESTINATION = '1';
-  await mkdir(storeDir, { recursive: true });
-  await mkdir(blobDir, { recursive: true });
-
   // const port = 2583;  // NOTE: the default, setting so it's clear
-  const port = 2582;  // NOTE: NOT the default, see below
   // XXX: it defaults to this but I don't think we get it automatically
   // also, the other port default is 2583 and I'm not sure if they're supposed to be different or not
   // I am playing with having them both the same, let's see which way this goes
-  const didPlcUrl = 'http://localhost:2582';
-  const repoSigningKey = await Secp256k1Keypair.create();
-  const plcRotationKey = await Secp256k1Keypair.create();
-  const recoveryKey = await Secp256k1Keypair.create();
+  // const didPlcUrl = `http://localhost:${plcPort}`;
+  // const repoSigningKey = await Secp256k1Keypair.create();
+  // const plcRotationKey = await Secp256k1Keypair.create();
+  // const recoveryKey = await Secp256k1Keypair.create();
   // XXX
   // This doesn't work because the URL doesn't resolve to anything.
   // I assume that we need to run the server first.
-  const plcClient = new PlcClient(didPlcUrl);
+  // const plcClient = new PlcClient(didPlcUrl);
 
-  const serverDid = await plcClient.createDid({
-    signingKey: repoSigningKey.did(),
-    rotationKeys: [recoveryKey.did(), plcRotationKey.did()],
-    handle: 'pds.test',
-    pds: `http://localhost:${port}`,
-    signer: plcRotationKey,
-  });
+  // const serverDid = await plcClient.createDid({
+  //   signingKey: repoSigningKey.did(),
+  //   rotationKeys: [recoveryKey.did(), plcRotationKey.did()],
+  //   handle: 'pds.test',
+  //   pds: `http://localhost:${port}`,
+  //   signer: plcRotationKey,
+  // });
 
-  // const keypair = await P256Keypair.create();
-  const config = ServerConfig.readEnv({
-    debugMode: true,
-    port,
-    hostname: 'pod.berjon.bast',
-    blobstoreLocation: blobDir,
-    jwtSecret: 'big-scary-jwt-secret',
-    didPlcUrl,
-    serverDid,
-    recoveryKey: recoveryKey.did(),
-    adminPassword: 'hunter2',
-    moderatorPassword: 'hunter2',
-    triagePassword: 'hunter2',
-    inviteRequired: false,
-    userInviteInterval: null,
-    userInviteEpoch: 0,
-    databaseLocation: sqlitePath,
-    availableUserDomains: ['.test', '.dev.bsky.dev', '.bast'],
-    imgUriSalt: '9dd04221f5755bce5f55f47464c27e1e', // NOTE: these two stolen from dev-env, no idea if they mean anything
-    imgUriKey: 'f23ecd142835025f42c3db2cf25dd813956c178392760256211f9d315f8ab4d8',
-    // rateLimitsEnabled: true,
-    appUrlPasswordReset: 'app://forgot-password', // NOTE: also just copied
-    emailNoReplyAddress: 'robin+no-reply@berjon.com',
-    labelerDid: 'did:example:labeler', // NOTE: these 5 also copied
-    labelerKeywords: { label_me: 'test-label', label_me_2: 'test-label-2' },
-    feedGenDid: 'did:example:feedGen',
-    maxSubscriptionBuffer: 200,
-    repoBackfillLimitMs: 1000 * 60 * 60,
-    sequencerLeaderLockId: uniqueLockId(),
-    dbTxLockNonce: await randomStr(32, 'base32'),
-    // bskyAppViewEndpoint?: string // XXX we'll see what we do here
-    // bskyAppViewModeration?: boolean
-    // bskyAppViewDid?: string
-    // bskyAppViewProxy: boolean
-    // bskyAppViewCdnUrlPattern?: string
-    crawlersToNotify: [],
-  });
+  // // const keypair = await P256Keypair.create();
+  // const config = ServerConfig.readEnv({
+  //   debugMode: true,
+  //   port,
+  //   hostname: 'pod.berjon.bast',
+  //   blobstoreLocation: blobDir,
+  //   jwtSecret: 'big-scary-jwt-secret',
+  //   didPlcUrl,
+  //   serverDid,
+  //   recoveryKey: recoveryKey.did(),
+  //   adminPassword: 'hunter2',
+  //   moderatorPassword: 'hunter2',
+  //   triagePassword: 'hunter2',
+  //   inviteRequired: false,
+  //   userInviteInterval: null,
+  //   userInviteEpoch: 0,
+  //   databaseLocation: sqlitePath,
+  //   availableUserDomains: ['.test', '.dev.bsky.dev', '.bast'],
+  //   imgUriSalt: '9dd04221f5755bce5f55f47464c27e1e', // NOTE: these two stolen from dev-env, no idea if they mean anything
+  //   imgUriKey: 'f23ecd142835025f42c3db2cf25dd813956c178392760256211f9d315f8ab4d8',
+  //   // rateLimitsEnabled: true,
+  //   appUrlPasswordReset: 'app://forgot-password', // NOTE: also just copied
+  //   emailNoReplyAddress: 'robin+no-reply@berjon.com',
+  //   labelerDid: 'did:example:labeler', // NOTE: these 5 also copied
+  //   labelerKeywords: { label_me: 'test-label', label_me_2: 'test-label-2' },
+  //   feedGenDid: 'did:example:feedGen',
+  //   maxSubscriptionBuffer: 200,
+  //   repoBackfillLimitMs: 1000 * 60 * 60,
+  //   sequencerLeaderLockId: uniqueLockId(),
+  //   dbTxLockNonce: await randomStr(32, 'base32'),
+  //   // bskyAppViewEndpoint?: string // XXX we'll see what we do here
+  //   // bskyAppViewModeration?: boolean
+  //   // bskyAppViewDid?: string
+  //   // bskyAppViewProxy: boolean
+  //   // bskyAppViewCdnUrlPattern?: string
+  //   crawlersToNotify: [],
+  // });
 
   // XXX
   // - create db

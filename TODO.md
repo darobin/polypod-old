@@ -1,12 +1,12 @@
 
 - [ ] Milestone: Integrated Hack
   - [ ] PLC server
-    - [ ] run whatever migrations and settings are needed as seen in dev-env and the deploy repo (save as command for readme)
+    - [ ] run whatever migrations and settings are needed as seen in dev-env and https://github.com/bluesky-social/pds (save as command for readme)
     - [ ] integrate plc server directly into the main process and run from there (just like PDS)
     - [ ] run whatever is needed to create a few users (save the command too)
     - [ ] add some basic tests to validate that it works
   - [ ] PDS server
-    - [ ] run whatever migrations and settings are needed as seen in dev-env and the deploy repo (save as command for readme)
+    - [ ] run whatever migrations and settings are needed as seen in dev-env and https://github.com/bluesky-social/pds (save as command for readme)
     - [ ] integrate directly
     - [ ] add some basic tests to validate that it works
   - [ ] Ping Method
@@ -21,6 +21,15 @@
   - [ ] setup AssemblyScript (I guess you build .as)
   - [ ] port ping
   - [ ] port hsv
+- [ ] Milestone: The Universe Is Your Blue Oyster
+  - [ ] Blogging methods
+  - [ ] Bad Bits methods
+  - [ ] Forum / Annotated discussion methods
+- [ ] Milestone: Clientèle
+  - [ ] Serve client from root of API server, it's more expedience
+  - [ ] Pathway to serve à la Tile
 
-
-- [ ] Move to a monorepo with server, client, protocols, and deploy (uses the server+protocols)
+- [ ] Administrativia
+  - [ ] Change the license so that we have a good foundation to build network governace on top of
+    - [ ] Build from https://xlcollaborative.com/
+  - [ ] Move to a monorepo with server, client, protocols, and deploy (uses the server+protocols)
