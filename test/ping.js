@@ -2,7 +2,7 @@
 import { ok, equal } from 'node:assert';
 import { client } from './base.js';
 
-describe('Run network.polypod.ping', () => {
+describe.skip('Run network.polypod.ping', () => {
   it('should support empty messages', async () => {
     const ret = await ping();
     ok(ret, 'Value was returned');

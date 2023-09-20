@@ -1,7 +1,7 @@
 
 import { mkdir } from 'fs/promises';
 import { join } from 'path';
-import { PolypodServer } from '../index.js';
+import PolypodServer from '../index.js';
 import makeRel from '../lib/rel.js';
 
 const rel = makeRel(import.meta.url);

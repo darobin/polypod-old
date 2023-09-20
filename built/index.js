@@ -35,98 +35,90 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
     }
 };
 import express from 'express';
-import { mkdir } from 'fs/promises';
-import { join } from 'path';
-import * as xrpc from '@atproto/xrpc-server';
-import { Secp256k1Keypair, randomStr } from '@atproto/crypto';
-import { ServerConfig } from '@atproto/pds';
-import { Client as PlcClient } from '@did-plc/lib';
-import makeRel from './lib/rel.js';
-import pingLexicon from './lexicons/network.polypod.ping.js';
-var rel = makeRel(import.meta.url);
-var storeDir = rel('../scratch');
-var sqlitePath = join(storeDir, 'pds.sqlite');
-var blobDir = join(storeDir, 'blob-store');
+import events from 'events';
+import { Database, PlcServer } from '@did-plc/server';
+import { createHttpTerminator } from 'http-terminator';
+import AppContext from './lib/context.js';
+var PolypodServer = /** @class */ (function () {
+    function PolypodServer(opts) {
+        this.ctx = opts.ctx;
+        this.app = opts.app;
+    }
+    PolypodServer.create = function (opts) {
+        if (opts === void 0) { opts = {}; }
+        return __awaiter(this, void 0, void 0, function () {
+            var ctx, plcDB, app;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0:
+                        process.env.TLS = '0'; // otherwise this will force the scheme to https
+                        ctx = new AppContext({
+                            port: opts.port,
+                            plcPort: opts.plcPort,
+                            pgURL: opts.pgURL,
+                        });
+                        plcDB = Database.postgres({ url: ctx.pgURL });
+                        return [4 /*yield*/, plcDB.migrateToLatestOrThrow()];
+                    case 1:
+                        _a.sent();
+                        ctx.plc = PlcServer.create({ db: plcDB, port: ctx.plcPort });
+                        app = express();
+                        app.use(express.json({ limit: '100kb' }));
+                        // app.use(cors())
+                        // app.use(loggerMiddleware)
+                        // app.use('/', createRouter(ctx))
+                        // app.use(error.handler)
+                        return [2 /*return*/, new PolypodServer({
+                                ctx: ctx,
+                                app: app,
+                            })];
+                }
+            });
+        });
+    };
+    PolypodServer.prototype.start = function () {
+        return __awaiter(this, void 0, void 0, function () {
+            var server;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0: return [4 /*yield*/, this.ctx.plc.start()];
+                    case 1:
+                        _a.sent();
+                        console.warn("PLC server running on port ".concat(this.ctx.plcPort, "."));
+                        server = this.app.listen(this.ctx.port);
+                        this.server = server;
+                        this.terminator = createHttpTerminator({ server: server });
+                        return [4 /*yield*/, events.once(server, 'listening')];
+                    case 2:
+                        _a.sent();
+                        return [2 /*return*/, server];
+                }
+            });
+        });
+    };
+    PolypodServer.prototype.destroy = function () {
+        var _a;
+        return __awaiter(this, void 0, void 0, function () {
+            return __generator(this, function (_b) {
+                switch (_b.label) {
+                    case 0: return [4 /*yield*/, this.ctx.plc.destroy()];
+                    case 1:
+                        _b.sent();
+                        return [4 /*yield*/, ((_a = this.terminator) === null || _a === void 0 ? void 0 : _a.terminate())];
+                    case 2:
+                        _b.sent();
+                        return [2 /*return*/];
+                }
+            });
+        });
+    };
+    return PolypodServer;
+}());
+export default PolypodServer;
 (function () {
     return __awaiter(this, void 0, void 0, function () {
-        var port, didPlcUrl, repoSigningKey, plcRotationKey, recoveryKey, plcClient, serverDid, config, _a, _b;
-        var _c;
-        return __generator(this, function (_d) {
-            switch (_d.label) {
-                case 0:
-                    process.env.TLS = '0'; // otherwise this will force the scheme to https
-                    process.env.LOG_ENABLED = 'true';
-                    process.env.LOG_LEVEL = 'debug';
-                    process.env.LOG_DESTINATION = '1';
-                    return [4 /*yield*/, mkdir(storeDir, { recursive: true })];
-                case 1:
-                    _d.sent();
-                    return [4 /*yield*/, mkdir(blobDir, { recursive: true })];
-                case 2:
-                    _d.sent();
-                    port = 2582;
-                    didPlcUrl = 'http://localhost:2582';
-                    return [4 /*yield*/, Secp256k1Keypair.create()];
-                case 3:
-                    repoSigningKey = _d.sent();
-                    return [4 /*yield*/, Secp256k1Keypair.create()];
-                case 4:
-                    plcRotationKey = _d.sent();
-                    return [4 /*yield*/, Secp256k1Keypair.create()];
-                case 5:
-                    recoveryKey = _d.sent();
-                    plcClient = new PlcClient(didPlcUrl);
-                    return [4 /*yield*/, plcClient.createDid({
-                            signingKey: repoSigningKey.did(),
-                            rotationKeys: [recoveryKey.did(), plcRotationKey.did()],
-                            handle: 'pds.test',
-                            pds: "http://localhost:".concat(port),
-                            signer: plcRotationKey,
-                        })];
-                case 6:
-                    serverDid = _d.sent();
-                    _b = (_a = ServerConfig).readEnv;
-                    _c = {
-                        debugMode: true,
-                        port: port,
-                        hostname: 'pod.berjon.bast',
-                        blobstoreLocation: blobDir,
-                        jwtSecret: 'big-scary-jwt-secret',
-                        didPlcUrl: didPlcUrl,
-                        serverDid: serverDid,
-                        recoveryKey: recoveryKey.did(),
-                        adminPassword: 'hunter2',
-                        moderatorPassword: 'hunter2',
-                        triagePassword: 'hunter2',
-                        inviteRequired: false,
-                        userInviteInterval: null,
-                        userInviteEpoch: 0,
-                        databaseLocation: sqlitePath,
-                        availableUserDomains: ['.test', '.dev.bsky.dev', '.bast'],
-                        imgUriSalt: '9dd04221f5755bce5f55f47464c27e1e',
-                        imgUriKey: 'f23ecd142835025f42c3db2cf25dd813956c178392760256211f9d315f8ab4d8',
-                        // rateLimitsEnabled: true,
-                        appUrlPasswordReset: 'app://forgot-password',
-                        emailNoReplyAddress: 'robin+no-reply@berjon.com',
-                        labelerDid: 'did:example:labeler',
-                        labelerKeywords: { label_me: 'test-label', label_me_2: 'test-label-2' },
-                        feedGenDid: 'did:example:feedGen',
-                        maxSubscriptionBuffer: 200,
-                        repoBackfillLimitMs: 1000 * 60 * 60,
-                        sequencerLeaderLockId: uniqueLockId()
-                    };
-                    return [4 /*yield*/, randomStr(32, 'base32')];
-                case 7:
-                    config = _b.apply(_a, [(_c.dbTxLockNonce = _d.sent(),
-                            // bskyAppViewEndpoint?: string // XXX we'll see what we do here
-                            // bskyAppViewModeration?: boolean
-                            // bskyAppViewDid?: string
-                            // bskyAppViewProxy: boolean
-                            // bskyAppViewCdnUrlPattern?: string
-                            _c.crawlersToNotify = [],
-                            _c)]);
-                    return [2 /*return*/];
-            }
+        return __generator(this, function (_a) {
+            return [2 /*return*/];
         });
     });
 })();
@@ -189,14 +181,14 @@ export var uniqueLockId = function () {
 // }
 // run()
 // --- Ping method and own XPRC server
-function ping(ctx) {
-    return {
-        encoding: 'application/json',
-        body: { message: ctx.params.message },
-    };
-}
-var server = xrpc.createServer([pingLexicon]);
-server.method(pingLexicon.id, ping);
-var app = express();
-app.use(server.router);
-app.listen(7654);
+// function ping (ctx: { auth: xrpc.HandlerAuth | undefined, params: xrpc.Params, input: xrpc.HandlerInput | undefined, req: express.Request, res: express.Response }) {
+//   return {
+//     encoding: 'application/json',
+//     body: { message: ctx.params.message },
+//   };
+// }
+// const server = xrpc.createServer([pingLexicon]);
+// server.method(pingLexicon.id, ping);
+// const app = express();
+// app.use(server.router);
+// app.listen(7654);

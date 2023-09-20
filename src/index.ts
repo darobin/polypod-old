@@ -12,7 +12,7 @@ import { createHttpTerminator, HttpTerminator } from 'http-terminator';
 import AppContext from './lib/context.js';
 import pingLexicon from './lexicons/network.polypod.ping.js';
 
-export class PolypodServer {
+export default class PolypodServer {
   public ctx: AppContext;
   public app: express.Application;
   public server?: http.Server;
@@ -24,11 +24,13 @@ export class PolypodServer {
   }
 
   static async create (opts: {
+    port?: number,
     plcPort?: number,
     pgURL?: string,
   } = {}): Promise<PolypodServer> {
     process.env.TLS = '0'; // otherwise this will force the scheme to https
     const ctx = new AppContext({
+      port: opts.port,
       plcPort: opts.plcPort,
       pgURL: opts.pgURL,
     });
@@ -208,16 +210,16 @@ export const uniqueLockId = () => {
 // run()
 
 // --- Ping method and own XPRC server
-function ping (ctx: { auth: xrpc.HandlerAuth | undefined, params: xrpc.Params, input: xrpc.HandlerInput | undefined, req: express.Request, res: express.Response }) {
-  return {
-    encoding: 'application/json',
-    body: { message: ctx.params.message },
-  };
-}
+// function ping (ctx: { auth: xrpc.HandlerAuth | undefined, params: xrpc.Params, input: xrpc.HandlerInput | undefined, req: express.Request, res: express.Response }) {
+//   return {
+//     encoding: 'application/json',
+//     body: { message: ctx.params.message },
+//   };
+// }
 
-const server = xrpc.createServer([pingLexicon]);
-server.method(pingLexicon.id, ping);
+// const server = xrpc.createServer([pingLexicon]);
+// server.method(pingLexicon.id, ping);
 
-const app = express();
-app.use(server.router);
-app.listen(7654);
+// const app = express();
+// app.use(server.router);
+// app.listen(7654);
