@@ -2,6 +2,8 @@
 import express from 'express';
 import http from 'http';
 import events from 'events';
+import { readFile, mkdir, writeFile } from 'fs/promises';
+import { join } from 'path';
 import * as xrpc from '@atproto/xrpc-server';
 import { Keypair, Secp256k1Keypair, randomStr } from '@atproto/crypto';
 import { ServerConfig } from '@atproto/pds';
@@ -50,14 +52,7 @@ export default class PolypodServer {
       port: opts.port,
     });
 
-    const plcClient = new PlcClient(ctx.plcURL);
-    const serverDid = await plcClient.createDid({
-      signingKey: ctx.repoSigningKey.did(),
-      rotationKeys: [ctx.recoveryKey.did(), ctx.plcRotationKey.did()],
-      handle: 'pds.test',
-      pds: `http://localhost:${ctx.port}`,
-      signer: ctx.plcRotationKey,
-    });
+    const serverDid = await this.getServerDID(ctx);
     console.warn(serverDid);
 
     const app = express();
@@ -71,6 +66,27 @@ export default class PolypodServer {
       ctx,
       app,
     });
+  }
+
+  static async getServerDID (ctx: AppContext): Promise<string> {
+    const didFile = join(ctx.keyDir, 'server-did.json');
+    let serverDid;
+    try {
+      const data = JSON.parse(await readFile(didFile, 'utf-8'));
+      serverDid = data.did;
+    }
+    catch (error) {
+      const plcClient = new PlcClient(ctx.plcURL);
+      serverDid = await plcClient.createDid({
+        signingKey: ctx.repoSigningKey.did(),
+        rotationKeys: [ctx.recoveryKey.did(), ctx.plcRotationKey.did()],
+        handle: 'pds.test',
+        pds: `http://localhost:${ctx.port}`,
+        signer: ctx.plcRotationKey,
+      });
+      await writeFile(didFile, JSON.stringify({ did: serverDid }, null, 2));
+    }
+    return serverDid;
   }
 
   async start (): Promise<http.Server> {

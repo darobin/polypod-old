@@ -36,6 +36,8 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
 };
 import express from 'express';
 import events from 'events';
+import { readFile, writeFile } from 'fs/promises';
+import { join } from 'path';
 import { Client as PlcClient } from '@did-plc/lib';
 import { createHttpTerminator } from 'http-terminator';
 import { subsystemLogger } from '@atproto/common';
@@ -48,7 +50,7 @@ var PolypodServer = /** @class */ (function () {
     }
     PolypodServer.create = function (opts) {
         return __awaiter(this, void 0, void 0, function () {
-            var ctx, plcClient, serverDid, app;
+            var ctx, serverDid, app;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
@@ -64,14 +66,7 @@ var PolypodServer = /** @class */ (function () {
                             plcURL: opts.plcURL,
                             port: opts.port,
                         });
-                        plcClient = new PlcClient(ctx.plcURL);
-                        return [4 /*yield*/, plcClient.createDid({
-                                signingKey: ctx.repoSigningKey.did(),
-                                rotationKeys: [ctx.recoveryKey.did(), ctx.plcRotationKey.did()],
-                                handle: 'pds.test',
-                                pds: "http://localhost:".concat(ctx.port),
-                                signer: ctx.plcRotationKey,
-                            })];
+                        return [4 /*yield*/, this.getServerDID(ctx)];
                     case 1:
                         serverDid = _a.sent();
                         console.warn(serverDid);
@@ -85,6 +80,43 @@ var PolypodServer = /** @class */ (function () {
                                 ctx: ctx,
                                 app: app,
                             })];
+                }
+            });
+        });
+    };
+    PolypodServer.getServerDID = function (ctx) {
+        return __awaiter(this, void 0, void 0, function () {
+            var didFile, serverDid, data, _a, _b, error_1, plcClient;
+            return __generator(this, function (_c) {
+                switch (_c.label) {
+                    case 0:
+                        didFile = join(ctx.keyDir, 'server-did.json');
+                        _c.label = 1;
+                    case 1:
+                        _c.trys.push([1, 3, , 6]);
+                        _b = (_a = JSON).parse;
+                        return [4 /*yield*/, readFile(didFile, 'utf-8')];
+                    case 2:
+                        data = _b.apply(_a, [_c.sent()]);
+                        serverDid = data.did;
+                        return [3 /*break*/, 6];
+                    case 3:
+                        error_1 = _c.sent();
+                        plcClient = new PlcClient(ctx.plcURL);
+                        return [4 /*yield*/, plcClient.createDid({
+                                signingKey: ctx.repoSigningKey.did(),
+                                rotationKeys: [ctx.recoveryKey.did(), ctx.plcRotationKey.did()],
+                                handle: 'pds.test',
+                                pds: "http://localhost:".concat(ctx.port),
+                                signer: ctx.plcRotationKey,
+                            })];
+                    case 4:
+                        serverDid = _c.sent();
+                        return [4 /*yield*/, writeFile(didFile, JSON.stringify({ did: serverDid }, null, 2))];
+                    case 5:
+                        _c.sent();
+                        return [3 /*break*/, 6];
+                    case 6: return [2 /*return*/, serverDid];
                 }
             });
         });
