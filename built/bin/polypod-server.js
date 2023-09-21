@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -34,31 +35,75 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
     }
 };
-import { mkdir } from 'fs/promises';
+import { readFile, mkdir, writeFile } from 'fs/promises';
 import { join } from 'path';
+import { Secp256k1Keypair } from '@atproto/crypto';
 import PolypodServer from '../index.js';
 import makeRel from '../lib/rel.js';
 var rel = makeRel(import.meta.url);
 var storeDir = rel('../../scratch');
 var blobDir = join(storeDir, 'blob-store');
+var keyDir = join(storeDir, 'key-store');
 process.env.LOG_ENABLED = 'true';
 process.env.LOG_LEVEL = 'debug';
 process.env.LOG_DESTINATION = '1';
 function run() {
     return __awaiter(this, void 0, void 0, function () {
-        var pod;
-        return __generator(this, function (_a) {
-            switch (_a.label) {
-                case 0: return [4 /*yield*/, mkdir(storeDir, { recursive: true })];
+        var _a, repoSigningKey, plcRotationKey, recoveryKey, pod;
+        return __generator(this, function (_b) {
+            switch (_b.label) {
+                case 0: return [4 /*yield*/, Promise.all([storeDir, blobDir, keyDir].map(function (d) { return mkdir(d, { recursive: true }); }))];
                 case 1:
-                    _a.sent();
-                    return [4 /*yield*/, mkdir(blobDir, { recursive: true })];
+                    _b.sent();
+                    return [4 /*yield*/, Promise.all(['repo-signing', 'plc-rotation', 'recovery'].map(function (n) { return loadOrCreateKey(keyDir, n); }))];
                 case 2:
-                    _a.sent();
-                    pod = PolypodServer.create();
+                    _a = _b.sent(), repoSigningKey = _a[0], plcRotationKey = _a[1], recoveryKey = _a[2];
+                    return [4 /*yield*/, PolypodServer.create({
+                            blobDir: blobDir,
+                            keyDir: keyDir,
+                            repoSigningKey: repoSigningKey,
+                            plcRotationKey: plcRotationKey,
+                            recoveryKey: recoveryKey,
+                        })];
+                case 3:
+                    pod = _b.sent();
                     return [2 /*return*/];
             }
         });
     });
 }
 run();
+function loadOrCreateKey(keyDir, name) {
+    return __awaiter(this, void 0, void 0, function () {
+        var keyFile, key, data, err_1, data;
+        return __generator(this, function (_a) {
+            switch (_a.label) {
+                case 0:
+                    keyFile = join(keyDir, name);
+                    _a.label = 1;
+                case 1:
+                    _a.trys.push([1, 4, , 8]);
+                    return [4 /*yield*/, readFile(keyFile)];
+                case 2:
+                    data = _a.sent();
+                    return [4 /*yield*/, Secp256k1Keypair.import(data)];
+                case 3:
+                    key = _a.sent();
+                    return [3 /*break*/, 8];
+                case 4:
+                    err_1 = _a.sent();
+                    return [4 /*yield*/, Secp256k1Keypair.create({ exportable: true })];
+                case 5:
+                    key = _a.sent();
+                    return [4 /*yield*/, key.export()];
+                case 6:
+                    data = _a.sent();
+                    return [4 /*yield*/, writeFile(keyFile, data)];
+                case 7:
+                    _a.sent();
+                    return [3 /*break*/, 8];
+                case 8: return [2 /*return*/, key];
+            }
+        });
+    });
+}

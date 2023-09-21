@@ -3,7 +3,7 @@ import express from 'express';
 import http from 'http';
 import events from 'events';
 import * as xrpc from '@atproto/xrpc-server';
-import { Secp256k1Keypair, randomStr } from '@atproto/crypto';
+import { Keypair, Secp256k1Keypair, randomStr } from '@atproto/crypto';
 import { ServerConfig } from '@atproto/pds';
 import { Client as PlcClient } from '@did-plc/lib';
 import { Database, PlcServer } from '@did-plc/server';
@@ -21,19 +21,29 @@ export default class PolypodServer {
   public server?: http.Server;
   private terminator?: HttpTerminator;
 
-  constructor (opts: { ctx: AppContext; app: express.Application }) {
+  constructor (opts: { ctx: AppContext, app: express.Application }) {
     this.ctx = opts.ctx;
     this.app = opts.app;
   }
 
   static async create (opts: {
+    blobDir?: string,
+    keyDir?: string,
+    repoSigningKey: Keypair,
+    plcRotationKey: Keypair,
+    recoveryKey: Keypair,
     log?: ReturnType<typeof subsystemLogger>,
     pgURL?: string,
     plcPort?: number,
     port?: number,
-  } = {}): Promise<PolypodServer> {
+  }): Promise<PolypodServer> {
     process.env.TLS = '0'; // otherwise this will force the scheme to https
     const ctx = new AppContext({
+      blobDir: opts.blobDir,
+      keyDir: opts.keyDir,
+      repoSigningKey: opts.repoSigningKey,
+      plcRotationKey: opts.plcRotationKey,
+      recoveryKey: opts.recoveryKey,
       log: opts.log || logger,
       pgURL: opts.pgURL,
       plcPort: opts.plcPort,
@@ -45,8 +55,20 @@ export default class PolypodServer {
     await plcDB.migrateToLatestOrThrow();
     ctx.plc = PlcServer.create({ db: plcDB, port: ctx.plcPort });
 
+    const didPlcUrl = `http://localhost:${ctx.plcPort}`;
+    const plcClient = new PlcClient(didPlcUrl);
+
+    const serverDid = await plcClient.createDid({
+      signingKey: ctx.repoSigningKey.did(),
+      rotationKeys: [ctx.recoveryKey.did(), ctx.plcRotationKey.did()],
+      handle: 'pds.test',
+      pds: `http://localhost:${ctx.port}`,
+      signer: ctx.plcRotationKey,
+    });
+    console.warn(serverDid);
+
     const app = express();
-    app.use(express.json({ limit: '100kb' }))
+    app.use(express.json({ limit: '100kb' }));
     // app.use(cors())
     // app.use(loggerMiddleware)
     // app.use('/', createRouter(ctx))
@@ -79,26 +101,6 @@ export default class PolypodServer {
 }
 
 (async function () {
-  // const port = 2583;  // NOTE: the default, setting so it's clear
-  // XXX: it defaults to this but I don't think we get it automatically
-  // also, the other port default is 2583 and I'm not sure if they're supposed to be different or not
-  // I am playing with having them both the same, let's see which way this goes
-  // const didPlcUrl = `http://localhost:${plcPort}`;
-  // const repoSigningKey = await Secp256k1Keypair.create();
-  // const plcRotationKey = await Secp256k1Keypair.create();
-  // const recoveryKey = await Secp256k1Keypair.create();
-  // XXX
-  // This doesn't work because the URL doesn't resolve to anything.
-  // I assume that we need to run the server first.
-  // const plcClient = new PlcClient(didPlcUrl);
-
-  // const serverDid = await plcClient.createDid({
-  //   signingKey: repoSigningKey.did(),
-  //   rotationKeys: [recoveryKey.did(), plcRotationKey.did()],
-  //   handle: 'pds.test',
-  //   pds: `http://localhost:${port}`,
-  //   signer: plcRotationKey,
-  // });
 
   // // const keypair = await P256Keypair.create();
   // const config = ServerConfig.readEnv({
@@ -211,8 +213,6 @@ export const uniqueLockId = () => {
 //   await pds.start()
 //   console.log(`🌞 ATP Data server is running at ${cfg.origin}`)
 // }
-
-// run()
 
 // --- Ping method and own XPRC server
 // function ping (ctx: { auth: xrpc.HandlerAuth | undefined, params: xrpc.Params, input: xrpc.HandlerInput | undefined, req: express.Request, res: express.Response }) {

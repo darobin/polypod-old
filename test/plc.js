@@ -1,22 +1,18 @@
 
 import { ok, fail } from 'node:assert';
 import getPort from 'get-port';
-import PolypodServer from '../built/index.js';
+import PolypodPLCServer from '../built/plc.js';
 import { Client } from '@did-plc/lib';
 
-let pod, plcPort;
+let plc, plcPort;
 before(async () => {
   plcPort = await getPort();
-  pod = await PolypodServer.create({
-    port: await getPort(),
-    plcPort,
-    pgURL: 'postgres://localhost/polypod-test',
-  });
-  await pod.start();
+  plc = await PolypodPLCServer.create('postgres://localhost/polypod-test', plcPort);
+  await plc.start();
 });
 after(async () => {
-  if (!pod) return;
-  pod.destroy();
+  if (!plc) return;
+  await plc.destroy();
 });
 
 describe('PLC Server', () => {

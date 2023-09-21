@@ -1,8 +1,32 @@
 var AppContext = /** @class */ (function () {
     function AppContext(opts) {
-        if (opts === void 0) { opts = {}; }
         this.opts = opts;
     }
+    Object.defineProperty(AppContext.prototype, "blobDir", {
+        get: function () { return this.opts.blobDir; },
+        enumerable: false,
+        configurable: true
+    });
+    Object.defineProperty(AppContext.prototype, "keyDir", {
+        get: function () { return this.opts.keyDir; },
+        enumerable: false,
+        configurable: true
+    });
+    Object.defineProperty(AppContext.prototype, "repoSigningKey", {
+        get: function () { return this.opts.repoSigningKey; },
+        enumerable: false,
+        configurable: true
+    });
+    Object.defineProperty(AppContext.prototype, "plcRotationKey", {
+        get: function () { return this.opts.plcRotationKey; },
+        enumerable: false,
+        configurable: true
+    });
+    Object.defineProperty(AppContext.prototype, "recoveryKey", {
+        get: function () { return this.opts.recoveryKey; },
+        enumerable: false,
+        configurable: true
+    });
     Object.defineProperty(AppContext.prototype, "log", {
         get: function () { return this.opts.log; },
         enumerable: false,

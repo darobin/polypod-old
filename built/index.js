@@ -36,6 +36,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
 };
 import express from 'express';
 import events from 'events';
+import { Client as PlcClient } from '@did-plc/lib';
 import { Database, PlcServer } from '@did-plc/server';
 import { createHttpTerminator } from 'http-terminator';
 import { subsystemLogger } from '@atproto/common';
@@ -47,14 +48,18 @@ var PolypodServer = /** @class */ (function () {
         this.app = opts.app;
     }
     PolypodServer.create = function (opts) {
-        if (opts === void 0) { opts = {}; }
         return __awaiter(this, void 0, void 0, function () {
-            var ctx, plcDB, app;
+            var ctx, plcDB, didPlcUrl, plcClient, serverDid, app;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
                         process.env.TLS = '0'; // otherwise this will force the scheme to https
                         ctx = new AppContext({
+                            blobDir: opts.blobDir,
+                            keyDir: opts.keyDir,
+                            repoSigningKey: opts.repoSigningKey,
+                            plcRotationKey: opts.plcRotationKey,
+                            recoveryKey: opts.recoveryKey,
                             log: opts.log || logger,
                             pgURL: opts.pgURL,
                             plcPort: opts.plcPort,
@@ -65,6 +70,18 @@ var PolypodServer = /** @class */ (function () {
                     case 1:
                         _a.sent();
                         ctx.plc = PlcServer.create({ db: plcDB, port: ctx.plcPort });
+                        didPlcUrl = "http://localhost:".concat(ctx.plcPort);
+                        plcClient = new PlcClient(didPlcUrl);
+                        return [4 /*yield*/, plcClient.createDid({
+                                signingKey: ctx.repoSigningKey.did(),
+                                rotationKeys: [ctx.recoveryKey.did(), ctx.plcRotationKey.did()],
+                                handle: 'pds.test',
+                                pds: "http://localhost:".concat(ctx.port),
+                                signer: ctx.plcRotationKey,
+                            })];
+                    case 2:
+                        serverDid = _a.sent();
+                        console.warn(serverDid);
                         app = express();
                         app.use(express.json({ limit: '100kb' }));
                         // app.use(cors())
@@ -182,7 +199,6 @@ export var uniqueLockId = function () {
 //   await pds.start()
 //   console.log(`🌞 ATP Data server is running at ${cfg.origin}`)
 // }
-// run()
 // --- Ping method and own XPRC server
 // function ping (ctx: { auth: xrpc.HandlerAuth | undefined, params: xrpc.Params, input: xrpc.HandlerInput | undefined, req: express.Request, res: express.Response }) {
 //   return {

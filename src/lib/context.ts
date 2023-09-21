@@ -1,17 +1,28 @@
 
 import { PlcServer } from '@did-plc/server';
 import { subsystemLogger } from '@atproto/common';
+import { Keypair } from '@atproto/crypto';
 
 export class AppContext {
   constructor(
     private opts: {
+      blobDir?: string,
+      keyDir?: string,
+      repoSigningKey: Keypair,
+      plcRotationKey: Keypair,
+      recoveryKey: Keypair,
       log?: ReturnType<typeof subsystemLogger>,
       pgURL?: string,
       plc?: PlcServer,
       plcPort?: number,
       port?: number,
-    } = {},
+    },
   ) {}
+  get blobDir () { return this.opts.blobDir; }
+  get keyDir () { return this.opts.keyDir; }
+  get repoSigningKey () { return this.opts.repoSigningKey; }
+  get plcRotationKey () { return this.opts.plcRotationKey; }
+  get recoveryKey () { return this.opts.recoveryKey; }
   get log () { return this.opts.log; }
   get pgURL () { return this.opts.pgURL || 'postgres://localhost/polypod'; }
   get plc () { return this.opts.plc; }

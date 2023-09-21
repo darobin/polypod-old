@@ -1,8 +1,8 @@
 
 - [ ] Milestone: Integrated Hack
   - [ ] PLC server
-    - [ ] run whatever migrations and settings are needed as seen in dev-env and https://github.com/bluesky-social/pds (save as command for readme)
-    - [ ] integrate plc server directly into the main process and run from there (just like PDS)
+    - [x] run whatever migrations and settings are needed as seen in dev-env and https://github.com/bluesky-social/pds (save as command for readme)
+    - [x] integrate plc server directly into the main process and run from there (just like PDS)
     - [ ] run whatever is needed to create a few users (save the command too)
     - [ ] add some basic tests to validate that it works
   - [ ] PDS server
