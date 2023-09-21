@@ -21,7 +21,7 @@ after(async () => {
 
 describe('PLC Server', () => {
   it('should be up and running', async () => {
-    const client = new Client(`http://localhost:${plcPort}/`);
+    const client = new Client(`http://localhost:${plcPort}`);
     try {
       const res = await client.health();
       ok(typeof res.version !== 'undefined', 'Health check returns with expected document');

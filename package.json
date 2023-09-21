@@ -39,6 +39,7 @@
     "typescript": "^5.2.2"
   },
   "dependencies": {
+    "@atproto/common": "^0.3.0",
     "@atproto/crypto": "^0.2.2",
     "@atproto/lexicon": "^0.2.0",
     "@atproto/pds": "^0.1.12",

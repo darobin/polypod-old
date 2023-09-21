@@ -38,7 +38,9 @@ import express from 'express';
 import events from 'events';
 import { Database, PlcServer } from '@did-plc/server';
 import { createHttpTerminator } from 'http-terminator';
+import { subsystemLogger } from '@atproto/common';
 import AppContext from './lib/context.js';
+var logger = subsystemLogger('polypod');
 var PolypodServer = /** @class */ (function () {
     function PolypodServer(opts) {
         this.ctx = opts.ctx;
@@ -53,9 +55,10 @@ var PolypodServer = /** @class */ (function () {
                     case 0:
                         process.env.TLS = '0'; // otherwise this will force the scheme to https
                         ctx = new AppContext({
-                            port: opts.port,
-                            plcPort: opts.plcPort,
+                            log: opts.log || logger,
                             pgURL: opts.pgURL,
+                            plcPort: opts.plcPort,
+                            port: opts.port,
                         });
                         plcDB = Database.postgres({ url: ctx.pgURL });
                         return [4 /*yield*/, plcDB.migrateToLatestOrThrow()];
@@ -84,7 +87,7 @@ var PolypodServer = /** @class */ (function () {
                     case 0: return [4 /*yield*/, this.ctx.plc.start()];
                     case 1:
                         _a.sent();
-                        console.warn("PLC server running on port ".concat(this.ctx.plcPort, "."));
+                        this.ctx.log.info("PLC server running on port ".concat(this.ctx.plcPort, "."));
                         server = this.app.listen(this.ctx.port);
                         this.server = server;
                         this.terminator = createHttpTerminator({ server: server });

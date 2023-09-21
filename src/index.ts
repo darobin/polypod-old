@@ -8,9 +8,12 @@ import { ServerConfig } from '@atproto/pds';
 import { Client as PlcClient } from '@did-plc/lib';
 import { Database, PlcServer } from '@did-plc/server';
 import { createHttpTerminator, HttpTerminator } from 'http-terminator';
+import { subsystemLogger } from '@atproto/common';
 
 import AppContext from './lib/context.js';
 import pingLexicon from './lexicons/network.polypod.ping.js';
+
+const logger: ReturnType<typeof subsystemLogger> = subsystemLogger('polypod');
 
 export default class PolypodServer {
   public ctx: AppContext;
@@ -24,15 +27,17 @@ export default class PolypodServer {
   }
 
   static async create (opts: {
-    port?: number,
-    plcPort?: number,
+    log?: ReturnType<typeof subsystemLogger>,
     pgURL?: string,
+    plcPort?: number,
+    port?: number,
   } = {}): Promise<PolypodServer> {
     process.env.TLS = '0'; // otherwise this will force the scheme to https
     const ctx = new AppContext({
-      port: opts.port,
-      plcPort: opts.plcPort,
+      log: opts.log || logger,
       pgURL: opts.pgURL,
+      plcPort: opts.plcPort,
+      port: opts.port,
     });
 
     // first, set up the PLC server which we run embedded and separate from the Bluesky sandbox
@@ -55,7 +60,7 @@ export default class PolypodServer {
 
   async start (): Promise<http.Server> {
     await this.ctx.plc.start();
-    console.warn(`PLC server running on port ${this.ctx.plcPort}.`);
+    this.ctx.log.info(`PLC server running on port ${this.ctx.plcPort}.`);
     // XXX
     // don't .start() the PDS, mount it and start ourselves
 
