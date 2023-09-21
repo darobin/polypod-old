@@ -34,7 +34,7 @@ export default class PolypodServer {
     recoveryKey: Keypair,
     log?: ReturnType<typeof subsystemLogger>,
     pgURL?: string,
-    plcPort?: number,
+    plcURL: string,
     port?: number,
   }): Promise<PolypodServer> {
     process.env.TLS = '0'; // otherwise this will force the scheme to https
@@ -46,18 +46,11 @@ export default class PolypodServer {
       recoveryKey: opts.recoveryKey,
       log: opts.log || logger,
       pgURL: opts.pgURL,
-      plcPort: opts.plcPort,
+      plcURL: opts.plcURL,
       port: opts.port,
     });
 
-    // first, set up the PLC server which we run embedded and separate from the Bluesky sandbox
-    const plcDB = Database.postgres({ url: ctx.pgURL });
-    await plcDB.migrateToLatestOrThrow();
-    ctx.plc = PlcServer.create({ db: plcDB, port: ctx.plcPort });
-
-    const didPlcUrl = `http://localhost:${ctx.plcPort}`;
-    const plcClient = new PlcClient(didPlcUrl);
-
+    const plcClient = new PlcClient(ctx.plcURL);
     const serverDid = await plcClient.createDid({
       signingKey: ctx.repoSigningKey.did(),
       rotationKeys: [ctx.recoveryKey.did(), ctx.plcRotationKey.did()],
@@ -81,8 +74,6 @@ export default class PolypodServer {
   }
 
   async start (): Promise<http.Server> {
-    await this.ctx.plc.start();
-    this.ctx.log.info(`PLC server running on port ${this.ctx.plcPort}.`);
     // XXX
     // don't .start() the PDS, mount it and start ourselves
 
@@ -94,7 +85,6 @@ export default class PolypodServer {
   }
 
   async destroy () {
-    await this.ctx.plc.destroy();
     await this.terminator?.terminate();
     // await this.ctx.db.close()
   }

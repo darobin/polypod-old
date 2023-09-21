@@ -40,7 +40,7 @@ var PolypodPLCServer = /** @class */ (function () {
         this.plc = plc;
         this.plcPort = plcPort;
     }
-    Object.defineProperty(PolypodPLCServer.prototype, "didPlcURL", {
+    Object.defineProperty(PolypodPLCServer.prototype, "plcURL", {
         get: function () { return "http://localhost:".concat(this.plcPort); },
         enumerable: false,
         configurable: true

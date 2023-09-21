@@ -30,4 +30,9 @@ I am playing with primitives from:
 
 and other stuff that's too new for anyone to know how it'll play out.
 
+## Running This Thing
+
+- `npm install` (or whichever one you love the most) as per usual
+- it expects Pg server running localhost with databases called `polypod` and `polypod-test`
+
 ![polypody](polypody.jpg)

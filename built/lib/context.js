@@ -37,14 +37,8 @@ var AppContext = /** @class */ (function () {
         enumerable: false,
         configurable: true
     });
-    Object.defineProperty(AppContext.prototype, "plc", {
-        get: function () { return this.opts.plc; },
-        set: function (s) { this.opts.plc = s; },
-        enumerable: false,
-        configurable: true
-    });
-    Object.defineProperty(AppContext.prototype, "plcPort", {
-        get: function () { return this.opts.plcPort || 2582; },
+    Object.defineProperty(AppContext.prototype, "plcURL", {
+        get: function () { return this.opts.plcURL || 'http://localhost:2582'; },
         enumerable: false,
         configurable: true
     });

@@ -37,7 +37,6 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
 import express from 'express';
 import events from 'events';
 import { Client as PlcClient } from '@did-plc/lib';
-import { Database, PlcServer } from '@did-plc/server';
 import { createHttpTerminator } from 'http-terminator';
 import { subsystemLogger } from '@atproto/common';
 import AppContext from './lib/context.js';
@@ -49,7 +48,7 @@ var PolypodServer = /** @class */ (function () {
     }
     PolypodServer.create = function (opts) {
         return __awaiter(this, void 0, void 0, function () {
-            var ctx, plcDB, didPlcUrl, plcClient, serverDid, app;
+            var ctx, plcClient, serverDid, app;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
@@ -62,16 +61,10 @@ var PolypodServer = /** @class */ (function () {
                             recoveryKey: opts.recoveryKey,
                             log: opts.log || logger,
                             pgURL: opts.pgURL,
-                            plcPort: opts.plcPort,
+                            plcURL: opts.plcURL,
                             port: opts.port,
                         });
-                        plcDB = Database.postgres({ url: ctx.pgURL });
-                        return [4 /*yield*/, plcDB.migrateToLatestOrThrow()];
-                    case 1:
-                        _a.sent();
-                        ctx.plc = PlcServer.create({ db: plcDB, port: ctx.plcPort });
-                        didPlcUrl = "http://localhost:".concat(ctx.plcPort);
-                        plcClient = new PlcClient(didPlcUrl);
+                        plcClient = new PlcClient(ctx.plcURL);
                         return [4 /*yield*/, plcClient.createDid({
                                 signingKey: ctx.repoSigningKey.did(),
                                 rotationKeys: [ctx.recoveryKey.did(), ctx.plcRotationKey.did()],
@@ -79,7 +72,7 @@ var PolypodServer = /** @class */ (function () {
                                 pds: "http://localhost:".concat(ctx.port),
                                 signer: ctx.plcRotationKey,
                             })];
-                    case 2:
+                    case 1:
                         serverDid = _a.sent();
                         console.warn(serverDid);
                         app = express();
@@ -101,15 +94,12 @@ var PolypodServer = /** @class */ (function () {
             var server;
             return __generator(this, function (_a) {
                 switch (_a.label) {
-                    case 0: return [4 /*yield*/, this.ctx.plc.start()];
-                    case 1:
-                        _a.sent();
-                        this.ctx.log.info("PLC server running on port ".concat(this.ctx.plcPort, "."));
+                    case 0:
                         server = this.app.listen(this.ctx.port);
                         this.server = server;
                         this.terminator = createHttpTerminator({ server: server });
                         return [4 /*yield*/, events.once(server, 'listening')];
-                    case 2:
+                    case 1:
                         _a.sent();
                         return [2 /*return*/, server];
                 }
@@ -121,11 +111,8 @@ var PolypodServer = /** @class */ (function () {
         return __awaiter(this, void 0, void 0, function () {
             return __generator(this, function (_b) {
                 switch (_b.label) {
-                    case 0: return [4 /*yield*/, this.ctx.plc.destroy()];
+                    case 0: return [4 /*yield*/, ((_a = this.terminator) === null || _a === void 0 ? void 0 : _a.terminate())];
                     case 1:
-                        _b.sent();
-                        return [4 /*yield*/, ((_a = this.terminator) === null || _a === void 0 ? void 0 : _a.terminate())];
-                    case 2:
                         _b.sent();
                         return [2 /*return*/];
                 }

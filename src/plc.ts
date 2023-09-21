@@ -12,7 +12,7 @@ export default class PolypodPLCServer {
     this.plcPort = plcPort;
   }
 
-  get didPlcURL () { return `http://localhost:${this.plcPort}`; }
+  get plcURL () { return `http://localhost:${this.plcPort}`; }
 
   static async create (pgURL?: string, plcPort?: number): Promise<PolypodPLCServer> {
     const plcDB = Database.postgres({ url: pgURL });

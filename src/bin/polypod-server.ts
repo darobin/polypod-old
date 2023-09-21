@@ -4,6 +4,7 @@ import { readFile, mkdir, writeFile } from 'fs/promises';
 import { join } from 'path';
 import { Keypair, Secp256k1Keypair } from '@atproto/crypto';
 import PolypodServer from '../index.js';
+import PolypodPLCServer from '../plc.js';
 import makeRel from '../lib/rel.js';
 
 const rel = makeRel(import.meta.url);
@@ -22,12 +23,16 @@ async function run () {
     ['repo-signing', 'plc-rotation', 'recovery'].map(n => loadOrCreateKey(keyDir, n))
   );
 
+  const plc = await PolypodPLCServer.create('postgres://localhost/polypod-test', 2582);
+  await plc.start();
+
   const pod = await PolypodServer.create({
     blobDir,
     keyDir,
     repoSigningKey,
     plcRotationKey,
     recoveryKey,
+    plcURL: plc.plcURL,
   });
 }
 

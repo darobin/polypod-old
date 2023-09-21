@@ -39,6 +39,7 @@ import { readFile, mkdir, writeFile } from 'fs/promises';
 import { join } from 'path';
 import { Secp256k1Keypair } from '@atproto/crypto';
 import PolypodServer from '../index.js';
+import PolypodPLCServer from '../plc.js';
 import makeRel from '../lib/rel.js';
 var rel = makeRel(import.meta.url);
 var storeDir = rel('../../scratch');
@@ -49,7 +50,7 @@ process.env.LOG_LEVEL = 'debug';
 process.env.LOG_DESTINATION = '1';
 function run() {
     return __awaiter(this, void 0, void 0, function () {
-        var _a, repoSigningKey, plcRotationKey, recoveryKey, pod;
+        var _a, repoSigningKey, plcRotationKey, recoveryKey, plc, pod;
         return __generator(this, function (_b) {
             switch (_b.label) {
                 case 0: return [4 /*yield*/, Promise.all([storeDir, blobDir, keyDir].map(function (d) { return mkdir(d, { recursive: true }); }))];
@@ -58,14 +59,21 @@ function run() {
                     return [4 /*yield*/, Promise.all(['repo-signing', 'plc-rotation', 'recovery'].map(function (n) { return loadOrCreateKey(keyDir, n); }))];
                 case 2:
                     _a = _b.sent(), repoSigningKey = _a[0], plcRotationKey = _a[1], recoveryKey = _a[2];
+                    return [4 /*yield*/, PolypodPLCServer.create('postgres://localhost/polypod-test', 2582)];
+                case 3:
+                    plc = _b.sent();
+                    return [4 /*yield*/, plc.start()];
+                case 4:
+                    _b.sent();
                     return [4 /*yield*/, PolypodServer.create({
                             blobDir: blobDir,
                             keyDir: keyDir,
                             repoSigningKey: repoSigningKey,
                             plcRotationKey: plcRotationKey,
                             recoveryKey: recoveryKey,
+                            plcURL: plc.plcURL,
                         })];
-                case 3:
+                case 5:
                     pod = _b.sent();
                     return [2 /*return*/];
             }

@@ -1,5 +1,4 @@
 
-import { PlcServer } from '@did-plc/server';
 import { subsystemLogger } from '@atproto/common';
 import { Keypair } from '@atproto/crypto';
 
@@ -13,8 +12,7 @@ export class AppContext {
       recoveryKey: Keypair,
       log?: ReturnType<typeof subsystemLogger>,
       pgURL?: string,
-      plc?: PlcServer,
-      plcPort?: number,
+      plcURL?: string,
       port?: number,
     },
   ) {}
@@ -25,9 +23,7 @@ export class AppContext {
   get recoveryKey () { return this.opts.recoveryKey; }
   get log () { return this.opts.log; }
   get pgURL () { return this.opts.pgURL || 'postgres://localhost/polypod'; }
-  get plc () { return this.opts.plc; }
-  set plc (s: PlcServer) { this.opts.plc = s; }
-  get plcPort () { return this.opts.plcPort || 2582; }
+  get plcURL () { return this.opts.plcURL || 'http://localhost:2582'; }
   get port () { return this.opts.port || 2583; }
 }
 
