@@ -1,18 +1,16 @@
 
 import { ok, fail } from 'node:assert';
-import getPort from 'get-port';
-import PolypodPLCServer from '../built/plc.js';
 import { Client } from '@did-plc/lib';
+import { makePLC } from './base.js';
 
 let plc, plcPort;
 before(async () => {
-  plcPort = await getPort();
-  plc = await PolypodPLCServer.create('postgres://localhost/plc-test', plcPort);
-  await plc.start();
+  const mocks = await makePLC();
+  plc = mocks.plc;
+  plcPort = mocks.plcPort;
 });
 after(async () => {
-  if (!plc) return;
-  await plc.destroy();
+  await plc?.destroy();
 });
 
 describe('PLC Server', () => {

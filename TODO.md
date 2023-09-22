@@ -4,11 +4,11 @@
     - [x] run whatever migrations and settings are needed as seen in dev-env and https://github.com/bluesky-social/pds (save as command for readme)
     - [x] integrate plc server directly into the main process and run from there (just like PDS)
     - [ ] run whatever is needed to create a few users (save the command too)
-    - [ ] add some basic tests to validate that it works
+    - [x] add some basic tests to validate that it works
   - [ ] PDS server
     - [ ] run whatever migrations and settings are needed as seen in dev-env and https://github.com/bluesky-social/pds (save as command for readme)
-    - [ ] integrate directly
-    - [ ] add some basic tests to validate that it works
+    - [x] integrate directly
+    - [x] add some basic tests to validate that it works
   - [ ] Ping Method
     - [ ] move the ping method to be exposed via the pds (use pds.ctx to access the APIs)
     - [ ] wrap the implementation with very minimal access so it's as safe as possible, no direct access as current
