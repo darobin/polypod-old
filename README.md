@@ -34,5 +34,6 @@ and other stuff that's too new for anyone to know how it'll play out.
 
 - `npm install` (or whichever one you love the most) as per usual
 - it expects Pg server running localhost with databases called `polypod` and `polypod-test`
+- all the PDS passwords are `hunter2` — if you run this in production somehow, you know what's coming
 
 ![polypody](polypody.jpg)

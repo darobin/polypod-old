@@ -34,25 +34,26 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
         if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
     }
 };
-import express from 'express';
-import events from 'events';
 import { readFile, writeFile } from 'fs/promises';
 import { join } from 'path';
+// import * as xrpc from '@atproto/xrpc-server';
+import { randomStr } from '@atproto/crypto';
+import { ServerConfig, Database, DiskBlobStore, PDS } from '@atproto/pds';
 import { Client as PlcClient } from '@did-plc/lib';
-import { createHttpTerminator } from 'http-terminator';
 import { subsystemLogger } from '@atproto/common';
 import AppContext from './lib/context.js';
 var logger = subsystemLogger('polypod');
 var PolypodServer = /** @class */ (function () {
     function PolypodServer(opts) {
         this.ctx = opts.ctx;
-        this.app = opts.app;
+        this.pds = opts.pds;
     }
     PolypodServer.create = function (opts) {
         return __awaiter(this, void 0, void 0, function () {
-            var ctx, serverDid, app;
-            return __generator(this, function (_a) {
-                switch (_a.label) {
+            var ctx, serverDid, config, _a, _b, db, blobstore, pds;
+            var _c;
+            return __generator(this, function (_d) {
+                switch (_d.label) {
                     case 0:
                         process.env.TLS = '0'; // otherwise this will force the scheme to https
                         ctx = new AppContext({
@@ -68,17 +69,64 @@ var PolypodServer = /** @class */ (function () {
                         });
                         return [4 /*yield*/, this.getServerDID(ctx)];
                     case 1:
-                        serverDid = _a.sent();
-                        console.warn(serverDid);
-                        app = express();
-                        app.use(express.json({ limit: '100kb' }));
-                        // app.use(cors())
-                        // app.use(loggerMiddleware)
-                        // app.use('/', createRouter(ctx))
-                        // app.use(error.handler)
+                        serverDid = _d.sent();
+                        _b = (_a = ServerConfig).readEnv;
+                        _c = {
+                            debugMode: true,
+                            port: ctx.port,
+                            hostname: 'pod.berjon.bast',
+                            blobstoreLocation: ctx.blobDir,
+                            jwtSecret: 'big-scary-jwt-secret',
+                            didPlcUrl: ctx.plcURL,
+                            serverDid: serverDid,
+                            recoveryKey: ctx.recoveryKey.did(),
+                            adminPassword: 'hunter2',
+                            moderatorPassword: 'hunter2',
+                            triagePassword: 'hunter2',
+                            inviteRequired: false,
+                            userInviteInterval: null,
+                            userInviteEpoch: 0,
+                            dbPostgresUrl: ctx.pgURL,
+                            availableUserDomains: ['.test', '.dev.bsky.dev', '.bast'],
+                            imgUriSalt: '9dd04221f5755bce5f55f47464c27e1e',
+                            imgUriKey: 'f23ecd142835025f42c3db2cf25dd813956c178392760256211f9d315f8ab4d8',
+                            // rateLimitsEnabled: true,
+                            appUrlPasswordReset: 'app://forgot-password',
+                            emailNoReplyAddress: 'robin+no-reply@berjon.com',
+                            labelerDid: 'did:example:labeler',
+                            labelerKeywords: { label_me: 'test-label', label_me_2: 'test-label-2' },
+                            feedGenDid: 'did:example:feedGen',
+                            maxSubscriptionBuffer: 200,
+                            repoBackfillLimitMs: 1000 * 60 * 60,
+                            sequencerLeaderLockId: uniqueLockId()
+                        };
+                        return [4 /*yield*/, randomStr(32, 'base32')];
+                    case 2:
+                        config = _b.apply(_a, [(_c.dbTxLockNonce = _d.sent(),
+                                // bskyAppViewEndpoint?: string // XXX we'll see what we do here
+                                // bskyAppViewModeration?: boolean
+                                // bskyAppViewDid?: string
+                                // bskyAppViewProxy: boolean
+                                // bskyAppViewCdnUrlPattern?: string
+                                _c.crawlersToNotify = [],
+                                _c)]);
+                        db = Database.postgres({ url: config.dbPostgresUrl, schema: config.dbPostgresSchema });
+                        return [4 /*yield*/, db.migrateToLatestOrThrow()];
+                    case 3:
+                        _d.sent();
+                        return [4 /*yield*/, DiskBlobStore.create(config.blobstoreLocation, config.blobstoreTmp)];
+                    case 4:
+                        blobstore = _d.sent();
+                        pds = PDS.create({
+                            db: db,
+                            blobstore: blobstore,
+                            repoSigningKey: ctx.repoSigningKey,
+                            plcRotationKey: ctx.plcRotationKey,
+                            config: config,
+                        });
                         return [2 /*return*/, new PolypodServer({
                                 ctx: ctx,
-                                app: app,
+                                pds: pds,
                             })];
                 }
             });
@@ -123,29 +171,18 @@ var PolypodServer = /** @class */ (function () {
     };
     PolypodServer.prototype.start = function () {
         return __awaiter(this, void 0, void 0, function () {
-            var server;
             return __generator(this, function (_a) {
-                switch (_a.label) {
-                    case 0:
-                        server = this.app.listen(this.ctx.port);
-                        this.server = server;
-                        this.terminator = createHttpTerminator({ server: server });
-                        return [4 /*yield*/, events.once(server, 'listening')];
-                    case 1:
-                        _a.sent();
-                        return [2 /*return*/, server];
-                }
+                return [2 /*return*/, this.pds.start()];
             });
         });
     };
     PolypodServer.prototype.destroy = function () {
-        var _a;
         return __awaiter(this, void 0, void 0, function () {
-            return __generator(this, function (_b) {
-                switch (_b.label) {
-                    case 0: return [4 /*yield*/, ((_a = this.terminator) === null || _a === void 0 ? void 0 : _a.terminate())];
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0: return [4 /*yield*/, this.pds.destroy()];
                     case 1:
-                        _b.sent();
+                        _a.sent();
                         return [2 /*return*/];
                 }
             });
@@ -154,13 +191,6 @@ var PolypodServer = /** @class */ (function () {
     return PolypodServer;
 }());
 export default PolypodServer;
-(function () {
-    return __awaiter(this, void 0, void 0, function () {
-        return __generator(this, function (_a) {
-            return [2 /*return*/];
-        });
-    });
-})();
 // from dev-env
 var usedLockIds = new Set();
 export var uniqueLockId = function () {
@@ -171,53 +201,6 @@ export var uniqueLockId = function () {
     usedLockIds.add(lockId);
     return lockId;
 };
-// env
-//
-// PDS_REPO_SIGNING_KEY_K256_PRIVATE_KEY_HEX=${PDS_REPO_SIGNING_KEY_K256_PRIVATE_KEY_HEX}
-// PDS_PLC_ROTATION_KEY_K256_PRIVATE_KEY_HEX=${PDS_PLC_ROTATION_KEY_K256_PRIVATE_KEY_HEX}
-// import { ServerConfig } from './config'
-// import * as crypto from '@atproto/crypto'
-// import Database from './db'
-// import PDS from './index'
-// import { DiskBlobStore, MemoryBlobStore } from './storage'
-// import { BlobStore } from '@atproto/repo'
-// const run = async () => {
-//   let db: Database
-//   const keypair = await crypto.P256Keypair.create()
-//   const cfg = ServerConfig.readEnv({
-//     serverDid: keypair.did(),
-//     recoveryKey: keypair.did(),
-//   })
-//   if (cfg.dbPostgresUrl) {
-//     db = Database.postgres({
-//       url: cfg.dbPostgresUrl,
-//       schema: cfg.dbPostgresSchema,
-//     })
-//   } else if (cfg.databaseLocation) {
-//     db = Database.sqlite(cfg.databaseLocation)
-//   } else {
-//     db = Database.memory()
-//   }
-//   await db.migrateToLatestOrThrow()
-//   let blobstore: BlobStore
-//   if (cfg.blobstoreLocation) {
-//     blobstore = await DiskBlobStore.create(
-//       cfg.blobstoreLocation,
-//       cfg.blobstoreTmp,
-//     )
-//   } else {
-//     blobstore = new MemoryBlobStore()
-//   }
-//   const pds = PDS.create({
-//     db,
-//     blobstore,
-//     repoSigningKey: keypair,
-//     plcRotationKey: keypair,
-//     config: cfg,
-//   })
-//   await pds.start()
-//   console.log(`🌞 ATP Data server is running at ${cfg.origin}`)
-// }
 // --- Ping method and own XPRC server
 // function ping (ctx: { auth: xrpc.HandlerAuth | undefined, params: xrpc.Params, input: xrpc.HandlerInput | undefined, req: express.Request, res: express.Response }) {
 //   return {
@@ -227,6 +210,4 @@ export var uniqueLockId = function () {
 // }
 // const server = xrpc.createServer([pingLexicon]);
 // server.method(pingLexicon.id, ping);
-// const app = express();
 // app.use(server.router);
-// app.listen(7654);

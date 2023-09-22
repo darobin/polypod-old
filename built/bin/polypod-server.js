@@ -59,7 +59,7 @@ function run() {
                     return [4 /*yield*/, Promise.all(['repo-signing', 'plc-rotation', 'recovery'].map(function (n) { return loadOrCreateKey(keyDir, n); }))];
                 case 2:
                     _a = _b.sent(), repoSigningKey = _a[0], plcRotationKey = _a[1], recoveryKey = _a[2];
-                    return [4 /*yield*/, PolypodPLCServer.create('postgres://localhost/polypod-test', 2582)];
+                    return [4 /*yield*/, PolypodPLCServer.create('postgres://localhost/plc-test', 2582)];
                 case 3:
                     plc = _b.sent();
                     return [4 /*yield*/, plc.start()];
@@ -75,6 +75,9 @@ function run() {
                         })];
                 case 5:
                     pod = _b.sent();
+                    return [4 /*yield*/, pod.start()];
+                case 6:
+                    _b.sent();
                     return [2 /*return*/];
             }
         });

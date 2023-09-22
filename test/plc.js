@@ -7,7 +7,7 @@ import { Client } from '@did-plc/lib';
 let plc, plcPort;
 before(async () => {
   plcPort = await getPort();
-  plc = await PolypodPLCServer.create('postgres://localhost/polypod-test', plcPort);
+  plc = await PolypodPLCServer.create('postgres://localhost/plc-test', plcPort);
   await plc.start();
 });
 after(async () => {

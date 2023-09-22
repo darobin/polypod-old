@@ -23,7 +23,7 @@ async function run () {
     ['repo-signing', 'plc-rotation', 'recovery'].map(n => loadOrCreateKey(keyDir, n))
   );
 
-  const plc = await PolypodPLCServer.create('postgres://localhost/polypod-test', 2582);
+  const plc = await PolypodPLCServer.create('postgres://localhost/plc-test', 2582);
   await plc.start();
 
   const pod = await PolypodServer.create({
@@ -34,6 +34,7 @@ async function run () {
     recoveryKey,
     plcURL: plc.plcURL,
   });
+  await pod.start();
 }
 
 run();

@@ -1,15 +1,11 @@
 
-import express from 'express';
 import http from 'http';
-import events from 'events';
-import { readFile, mkdir, writeFile } from 'fs/promises';
+import { readFile, writeFile } from 'fs/promises';
 import { join } from 'path';
-import * as xrpc from '@atproto/xrpc-server';
-import { Keypair, Secp256k1Keypair, randomStr } from '@atproto/crypto';
-import { ServerConfig } from '@atproto/pds';
+// import * as xrpc from '@atproto/xrpc-server';
+import { Keypair, randomStr } from '@atproto/crypto';
+import { ServerConfig, Database, DiskBlobStore, PDS } from '@atproto/pds';
 import { Client as PlcClient } from '@did-plc/lib';
-import { Database, PlcServer } from '@did-plc/server';
-import { createHttpTerminator, HttpTerminator } from 'http-terminator';
 import { subsystemLogger } from '@atproto/common';
 
 import AppContext from './lib/context.js';
@@ -19,13 +15,11 @@ const logger: ReturnType<typeof subsystemLogger> = subsystemLogger('polypod');
 
 export default class PolypodServer {
   public ctx: AppContext;
-  public app: express.Application;
-  public server?: http.Server;
-  private terminator?: HttpTerminator;
+  public pds: PDS;
 
-  constructor (opts: { ctx: AppContext, app: express.Application }) {
+  constructor (opts: { ctx: AppContext, pds: PDS }) {
     this.ctx = opts.ctx;
-    this.app = opts.app;
+    this.pds = opts.pds;
   }
 
   static async create (opts: {
@@ -53,18 +47,59 @@ export default class PolypodServer {
     });
 
     const serverDid = await this.getServerDID(ctx);
-    console.warn(serverDid);
+    const config = ServerConfig.readEnv({
+      debugMode: true,
+      port: ctx.port,
+      hostname: 'pod.berjon.bast',
+      blobstoreLocation: ctx.blobDir,
+      jwtSecret: 'big-scary-jwt-secret',
+      didPlcUrl: ctx.plcURL,
+      serverDid,
+      recoveryKey: ctx.recoveryKey.did(),
+      adminPassword: 'hunter2',
+      moderatorPassword: 'hunter2',
+      triagePassword: 'hunter2',
+      inviteRequired: false,
+      userInviteInterval: null,
+      userInviteEpoch: 0,
+      dbPostgresUrl: ctx.pgURL,
+      availableUserDomains: ['.test', '.dev.bsky.dev', '.bast'],
+      imgUriSalt: '9dd04221f5755bce5f55f47464c27e1e', // NOTE: these two stolen from dev-env, no idea if they mean anything
+      imgUriKey: 'f23ecd142835025f42c3db2cf25dd813956c178392760256211f9d315f8ab4d8',
+      // rateLimitsEnabled: true,
+      appUrlPasswordReset: 'app://forgot-password', // NOTE: also just copied
+      emailNoReplyAddress: 'robin+no-reply@berjon.com',
+      labelerDid: 'did:example:labeler', // NOTE: these 5 also copied
+      labelerKeywords: { label_me: 'test-label', label_me_2: 'test-label-2' },
+      feedGenDid: 'did:example:feedGen',
+      maxSubscriptionBuffer: 200,
+      repoBackfillLimitMs: 1000 * 60 * 60,
+      sequencerLeaderLockId: uniqueLockId(),
+      dbTxLockNonce: await randomStr(32, 'base32'),
+      // bskyAppViewEndpoint?: string // XXX we'll see what we do here
+      // bskyAppViewModeration?: boolean
+      // bskyAppViewDid?: string
+      // bskyAppViewProxy: boolean
+      // bskyAppViewCdnUrlPattern?: string
+      crawlersToNotify: [],
+    });
 
-    const app = express();
-    app.use(express.json({ limit: '100kb' }));
-    // app.use(cors())
-    // app.use(loggerMiddleware)
-    // app.use('/', createRouter(ctx))
-    // app.use(error.handler)
+    const db = Database.postgres({ url: config.dbPostgresUrl, schema: config.dbPostgresSchema });
+    await db.migrateToLatestOrThrow();
+
+    const blobstore = await DiskBlobStore.create(config.blobstoreLocation, config.blobstoreTmp);
+
+    const pds = PDS.create({
+      db,
+      blobstore,
+      repoSigningKey: ctx.repoSigningKey,
+      plcRotationKey: ctx.plcRotationKey,
+      config,
+    });
 
     return new PolypodServer({
       ctx,
-      app,
+      pds,
     });
   }
 
@@ -90,68 +125,13 @@ export default class PolypodServer {
   }
 
   async start (): Promise<http.Server> {
-    // XXX
-    // don't .start() the PDS, mount it and start ourselves
-
-    const server = this.app.listen(this.ctx.port);
-    this.server = server;
-    this.terminator = createHttpTerminator({ server });
-    await events.once(server, 'listening');
-    return server;
+    return this.pds.start();
   }
 
   async destroy () {
-    await this.terminator?.terminate();
-    // await this.ctx.db.close()
+    await this.pds.destroy();
   }
 }
-
-(async function () {
-
-  // // const keypair = await P256Keypair.create();
-  // const config = ServerConfig.readEnv({
-  //   debugMode: true,
-  //   port,
-  //   hostname: 'pod.berjon.bast',
-  //   blobstoreLocation: blobDir,
-  //   jwtSecret: 'big-scary-jwt-secret',
-  //   didPlcUrl,
-  //   serverDid,
-  //   recoveryKey: recoveryKey.did(),
-  //   adminPassword: 'hunter2',
-  //   moderatorPassword: 'hunter2',
-  //   triagePassword: 'hunter2',
-  //   inviteRequired: false,
-  //   userInviteInterval: null,
-  //   userInviteEpoch: 0,
-  //   databaseLocation: sqlitePath,
-  //   availableUserDomains: ['.test', '.dev.bsky.dev', '.bast'],
-  //   imgUriSalt: '9dd04221f5755bce5f55f47464c27e1e', // NOTE: these two stolen from dev-env, no idea if they mean anything
-  //   imgUriKey: 'f23ecd142835025f42c3db2cf25dd813956c178392760256211f9d315f8ab4d8',
-  //   // rateLimitsEnabled: true,
-  //   appUrlPasswordReset: 'app://forgot-password', // NOTE: also just copied
-  //   emailNoReplyAddress: 'robin+no-reply@berjon.com',
-  //   labelerDid: 'did:example:labeler', // NOTE: these 5 also copied
-  //   labelerKeywords: { label_me: 'test-label', label_me_2: 'test-label-2' },
-  //   feedGenDid: 'did:example:feedGen',
-  //   maxSubscriptionBuffer: 200,
-  //   repoBackfillLimitMs: 1000 * 60 * 60,
-  //   sequencerLeaderLockId: uniqueLockId(),
-  //   dbTxLockNonce: await randomStr(32, 'base32'),
-  //   // bskyAppViewEndpoint?: string // XXX we'll see what we do here
-  //   // bskyAppViewModeration?: boolean
-  //   // bskyAppViewDid?: string
-  //   // bskyAppViewProxy: boolean
-  //   // bskyAppViewCdnUrlPattern?: string
-  //   crawlersToNotify: [],
-  // });
-
-  // XXX
-  // - create db
-  // - create blobstore
-  // - create PDS
-
-})();
 
 // from dev-env
 const usedLockIds = new Set();
@@ -164,62 +144,6 @@ export const uniqueLockId = () => {
   return lockId;
 }
 
-
-// env
-//
-// PDS_REPO_SIGNING_KEY_K256_PRIVATE_KEY_HEX=${PDS_REPO_SIGNING_KEY_K256_PRIVATE_KEY_HEX}
-// PDS_PLC_ROTATION_KEY_K256_PRIVATE_KEY_HEX=${PDS_PLC_ROTATION_KEY_K256_PRIVATE_KEY_HEX}
-
-// import { ServerConfig } from './config'
-// import * as crypto from '@atproto/crypto'
-// import Database from './db'
-// import PDS from './index'
-// import { DiskBlobStore, MemoryBlobStore } from './storage'
-// import { BlobStore } from '@atproto/repo'
-
-// const run = async () => {
-//   let db: Database
-
-//   const keypair = await crypto.P256Keypair.create()
-//   const cfg = ServerConfig.readEnv({
-//     serverDid: keypair.did(),
-//     recoveryKey: keypair.did(),
-//   })
-
-//   if (cfg.dbPostgresUrl) {
-//     db = Database.postgres({
-//       url: cfg.dbPostgresUrl,
-//       schema: cfg.dbPostgresSchema,
-//     })
-//   } else if (cfg.databaseLocation) {
-//     db = Database.sqlite(cfg.databaseLocation)
-//   } else {
-//     db = Database.memory()
-//   }
-
-//   await db.migrateToLatestOrThrow()
-
-//   let blobstore: BlobStore
-//   if (cfg.blobstoreLocation) {
-//     blobstore = await DiskBlobStore.create(
-//       cfg.blobstoreLocation,
-//       cfg.blobstoreTmp,
-//     )
-//   } else {
-//     blobstore = new MemoryBlobStore()
-//   }
-
-//   const pds = PDS.create({
-//     db,
-//     blobstore,
-//     repoSigningKey: keypair,
-//     plcRotationKey: keypair,
-//     config: cfg,
-//   })
-//   await pds.start()
-//   console.log(`🌞 ATP Data server is running at ${cfg.origin}`)
-// }
-
 // --- Ping method and own XPRC server
 // function ping (ctx: { auth: xrpc.HandlerAuth | undefined, params: xrpc.Params, input: xrpc.HandlerInput | undefined, req: express.Request, res: express.Response }) {
 //   return {
@@ -231,6 +155,4 @@ export const uniqueLockId = () => {
 // const server = xrpc.createServer([pingLexicon]);
 // server.method(pingLexicon.id, ping);
 
-// const app = express();
 // app.use(server.router);
-// app.listen(7654);
