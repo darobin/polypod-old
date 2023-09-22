@@ -38,7 +38,7 @@ after(async () => {
 describe('PDS Server', () => {
   it('should be up and running', async () => {
     try {
-      const res = await axios.get(`http://localhost:${plcPort}/xrpc/_health`);
+      const res = await axios.get(`http://localhost:${podPort}/xrpc/_health`);
       ok(typeof res.data.version !== 'undefined', 'Health check returns with expected document');
     }
     catch (err) {
