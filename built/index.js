@@ -36,12 +36,12 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
 };
 import { readFile, writeFile } from 'fs/promises';
 import { join } from 'path';
-// import * as xrpc from '@atproto/xrpc-server';
 import { randomStr } from '@atproto/crypto';
 import { ServerConfig, Database, DiskBlobStore, PDS } from '@atproto/pds';
 import { Client as PlcClient } from '@did-plc/lib';
 import { subsystemLogger } from '@atproto/common';
 import AppContext from './lib/context.js';
+import pingLexicon from './lexicons/network.polypod.ping.js';
 var logger = subsystemLogger('polypod');
 var PolypodServer = /** @class */ (function () {
     function PolypodServer(opts) {
@@ -50,7 +50,7 @@ var PolypodServer = /** @class */ (function () {
     }
     PolypodServer.create = function (opts) {
         return __awaiter(this, void 0, void 0, function () {
-            var ctx, serverDid, config, _a, _b, db, blobstore, pds;
+            var ctx, serverDid, config, _a, _b, db, blobstore, pds, pod;
             var _c;
             return __generator(this, function (_d) {
                 switch (_d.label) {
@@ -88,8 +88,8 @@ var PolypodServer = /** @class */ (function () {
                             userInviteEpoch: 0,
                             dbPostgresUrl: ctx.pgURL,
                             availableUserDomains: ['.test', '.dev.bsky.dev', '.bast'],
-                            imgUriSalt: '9dd04221f5755bce5f55f47464c27e1e',
-                            imgUriKey: 'f23ecd142835025f42c3db2cf25dd813956c178392760256211f9d315f8ab4d8',
+                            // imgUriSalt: '9dd04221f5755bce5f55f47464c27e1e', // NOTE: these two stolen from dev-env, no idea if they mean anything
+                            // imgUriKey: 'f23ecd142835025f42c3db2cf25dd813956c178392760256211f9d315f8ab4d8',
                             // rateLimitsEnabled: true,
                             appUrlPasswordReset: 'app://forgot-password',
                             emailNoReplyAddress: 'robin+no-reply@berjon.com',
@@ -124,10 +124,14 @@ var PolypodServer = /** @class */ (function () {
                             plcRotationKey: ctx.plcRotationKey,
                             config: config,
                         });
-                        return [2 /*return*/, new PolypodServer({
-                                ctx: ctx,
-                                pds: pds,
-                            })];
+                        pod = new PolypodServer({
+                            ctx: ctx,
+                            pds: pds,
+                        });
+                        return [4 /*yield*/, pod.setupApplications()];
+                    case 5:
+                        _d.sent();
+                        return [2 /*return*/, pod];
                 }
             });
         });
@@ -188,6 +192,23 @@ var PolypodServer = /** @class */ (function () {
             });
         });
     };
+    PolypodServer.prototype.setupApplications = function () {
+        return __awaiter(this, void 0, void 0, function () {
+            // --- Ping method and own XPRC server
+            // XXX this is not the signature that we're aiming for
+            function ping(ctx) {
+                return {
+                    encoding: 'application/json',
+                    body: { message: ctx.params.message },
+                };
+            }
+            return __generator(this, function (_a) {
+                this.pds.xrpc.addLexicon(pingLexicon);
+                this.pds.xrpc.method(pingLexicon.id, ping);
+                return [2 /*return*/];
+            });
+        });
+    };
     return PolypodServer;
 }());
 export default PolypodServer;
@@ -201,13 +222,3 @@ export var uniqueLockId = function () {
     usedLockIds.add(lockId);
     return lockId;
 };
-// --- Ping method and own XPRC server
-// function ping (ctx: { auth: xrpc.HandlerAuth | undefined, params: xrpc.Params, input: xrpc.HandlerInput | undefined, req: express.Request, res: express.Response }) {
-//   return {
-//     encoding: 'application/json',
-//     body: { message: ctx.params.message },
-//   };
-// }
-// const server = xrpc.createServer([pingLexicon]);
-// server.method(pingLexicon.id, ping);
-// app.use(server.router);

@@ -2,7 +2,8 @@
 import http from 'http';
 import { readFile, writeFile } from 'fs/promises';
 import { join } from 'path';
-// import * as xrpc from '@atproto/xrpc-server';
+import express from 'express';
+import * as xrpc from '@atproto/xrpc-server';
 import { Keypair, randomStr } from '@atproto/crypto';
 import { ServerConfig, Database, DiskBlobStore, PDS } from '@atproto/pds';
 import { Client as PlcClient } from '@did-plc/lib';
@@ -64,8 +65,8 @@ export default class PolypodServer {
       userInviteEpoch: 0,
       dbPostgresUrl: ctx.pgURL,
       availableUserDomains: ['.test', '.dev.bsky.dev', '.bast'],
-      imgUriSalt: '9dd04221f5755bce5f55f47464c27e1e', // NOTE: these two stolen from dev-env, no idea if they mean anything
-      imgUriKey: 'f23ecd142835025f42c3db2cf25dd813956c178392760256211f9d315f8ab4d8',
+      // imgUriSalt: '9dd04221f5755bce5f55f47464c27e1e', // NOTE: these two stolen from dev-env, no idea if they mean anything
+      // imgUriKey: 'f23ecd142835025f42c3db2cf25dd813956c178392760256211f9d315f8ab4d8',
       // rateLimitsEnabled: true,
       appUrlPasswordReset: 'app://forgot-password', // NOTE: also just copied
       emailNoReplyAddress: 'robin+no-reply@berjon.com',
@@ -97,10 +98,12 @@ export default class PolypodServer {
       config,
     });
 
-    return new PolypodServer({
+    const pod = new PolypodServer({
       ctx,
       pds,
     });
+    await pod.setupApplications();
+    return pod;
   }
 
   static async getServerDID (ctx: AppContext): Promise<string> {
@@ -131,6 +134,23 @@ export default class PolypodServer {
   async destroy () {
     await this.pds.destroy();
   }
+
+  async setupApplications () {
+    // --- Ping method and own XPRC server
+    // XXX this is not the signature that we're aiming for
+    function ping (ctx: { auth: xrpc.HandlerAuth | undefined, params: xrpc.Params, input: xrpc.HandlerInput | undefined, req: express.Request, res: express.Response }) {
+      return {
+        encoding: 'application/json',
+        body: { message: ctx.params.message },
+      };
+    }
+
+    this.pds.xrpc.addLexicon(pingLexicon);
+    this.pds.xrpc.method(pingLexicon.id, ping);
+    // const server = xrpc.createServer([pingLexicon]);
+    // server.method(pingLexicon.id, ping);
+    // this.pds.app.use(server.router);
+  }
 }
 
 // from dev-env
@@ -143,16 +163,3 @@ export const uniqueLockId = () => {
   usedLockIds.add(lockId);
   return lockId;
 }
-
-// --- Ping method and own XPRC server
-// function ping (ctx: { auth: xrpc.HandlerAuth | undefined, params: xrpc.Params, input: xrpc.HandlerInput | undefined, req: express.Request, res: express.Response }) {
-//   return {
-//     encoding: 'application/json',
-//     body: { message: ctx.params.message },
-//   };
-// }
-
-// const server = xrpc.createServer([pingLexicon]);
-// server.method(pingLexicon.id, ping);
-
-// app.use(server.router);

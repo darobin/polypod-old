@@ -8,10 +8,6 @@ import { Secp256k1Keypair } from '@atproto/crypto';
 import PolypodServer from '../built/index.js';
 import PolypodPLCServer from '../built/plc.js';
 
-export const PORT = 7654;
-export const BASE_URL = `http://localhost:${PORT}/xrpc/`;
-export const client = axios.create({ baseURL: BASE_URL });
-
 export async function makePLC () {
   const plcPort = await getPort();
   const plc = await PolypodPLCServer.create('postgres://localhost/plc-test', plcPort);
@@ -36,5 +32,9 @@ export async function makePod (plc) {
     plcURL: plc.plcURL,
   });
   await pod.start();
-  return { pod, podPort, plc };
+
+  const baseURL = `http://localhost:${podPort}/xrpc/`;
+  const client = axios.create({ baseURL });
+
+  return { pod, podPort, plc, client };
 }
