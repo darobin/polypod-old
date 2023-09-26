@@ -2,22 +2,12 @@
 import http from 'http';
 import { readFile, writeFile } from 'fs/promises';
 import { join } from 'path';
-import express from 'express';
-import { Options as XrpcServerOptions } from '@atproto/xrpc-server';
+import { Request, Response } from 'express';
+import { HandlerAuth, HandlerInput, Params } from '@atproto/xrpc-server';
 import { Keypair, randomStr } from '@atproto/crypto';
 import { ServerConfig, Database, DiskBlobStore, PDS } from '@atproto/pds';
 import { Client as PlcClient } from '@did-plc/lib';
 import { subsystemLogger } from '@atproto/common';
-// monkeypatching, may smell
-import cors from 'cors';
-import compression from '@atproto/pds/dist/util/compression.js';
-import { loggerMiddleware } from '@atproto/pds/dist/logger.js';
-import { createServer } from '@atproto/pds/dist/lexicon';
-import API from '@atproto/pds/dist/api';
-import inProcessAppView from '@atproto/pds/dist/app-view/api';
-import * as basicRoutes from '@atproto/pds/dist/basic-routes.js';
-import * as wellKnown from '@atproto/pds/dist/well-known.js';
-import * as error from '@atproto/pds/dist/error.js';
 
 import AppContext from './lib/context.js';
 import pingLexicon from './lexicons/network.polypod.ping.js';
@@ -108,31 +98,6 @@ export default class PolypodServer {
       config,
     });
 
-    // ~~~ WARNING ~~~~
-    // Monkeypatching the Express app inside the PDS so we can extend the XRPC
-    const app = express();
-    app.set('trust proxy', true);
-    app.use(cors());
-    app.use(loggerMiddleware);
-    app.use(compression.default());
-    const xrpcOpts: XrpcServerOptions = {
-      validateResponse: true,
-      payload: {
-        jsonLimit: 100 * 1024, // 100kb
-        textLimit: 100 * 1024, // 100kb
-        blobLimit: 5 * 1024 * 1024, // 5mb
-      },
-    };
-    let server = createServer(xrpcOpts);
-    server = API.default(server, pds.ctx);
-    server = inProcessAppView.default(server, pds.ctx);
-    app.use(basicRoutes.createRouter(pds.ctx));
-    app.use(wellKnown.createRouter(pds.ctx));
-    app.use(server.xrpc.router);
-    app.use(error.handler);
-    pds.app = app;
-    // EO Monkeypatch
-
     const pod = new PolypodServer({
       ctx,
       pds,
@@ -173,18 +138,16 @@ export default class PolypodServer {
   async setupApplications () {
     // --- Ping method and own XPRC server
     // XXX this is not the signature that we're aiming for
-    // function ping (ctx: { auth: xrpc.HandlerAuth | undefined, params: xrpc.Params, input: xrpc.HandlerInput | undefined, req: express.Request, res: express.Response }) {
-    //   return {
-    //     encoding: 'application/json',
-    //     body: { message: ctx.params.message },
-    //   };
-    // }
+    function ping (ctx: { auth: HandlerAuth | undefined, params: Params, input: HandlerInput | undefined, req: Request, res: Response }) {
+      return {
+        encoding: 'application/json',
+        body: { message: ctx.params.message },
+      };
+    }
 
-    // this.pds.xrpc.addLexicon(pingLexicon);
-    // this.pds.xrpc.method(pingLexicon.id, ping);
-    // const server = xrpc.createServer([pingLexicon]);
-    // server.method(pingLexicon.id, ping);
-    // this.pds.app.use(server.router);
+    // we add straight to the PDS
+    this.pds.xrpc.addLexicon(pingLexicon);
+    this.pds.xrpc.method(pingLexicon.id, ping);
   }
 }
 

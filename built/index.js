@@ -36,22 +36,12 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
 };
 import { readFile, writeFile } from 'fs/promises';
 import { join } from 'path';
-import express from 'express';
 import { randomStr } from '@atproto/crypto';
 import { ServerConfig, Database, DiskBlobStore, PDS } from '@atproto/pds';
 import { Client as PlcClient } from '@did-plc/lib';
 import { subsystemLogger } from '@atproto/common';
-// monkeypatching, may smell
-import cors from 'cors';
-import compression from '@atproto/pds/dist/util/compression.js';
-import { loggerMiddleware } from '@atproto/pds/dist/logger.js';
-import { createServer } from '@atproto/pds/dist/lexicon';
-import API from '@atproto/pds/dist/api';
-import inProcessAppView from '@atproto/pds/dist/app-view/api';
-import * as basicRoutes from '@atproto/pds/dist/basic-routes.js';
-import * as wellKnown from '@atproto/pds/dist/well-known.js';
-import * as error from '@atproto/pds/dist/error.js';
 import AppContext from './lib/context.js';
+import pingLexicon from './lexicons/network.polypod.ping.js';
 var logger = subsystemLogger('polypod');
 var PolypodServer = /** @class */ (function () {
     function PolypodServer(opts) {
@@ -60,7 +50,7 @@ var PolypodServer = /** @class */ (function () {
     }
     PolypodServer.create = function (opts) {
         return __awaiter(this, void 0, void 0, function () {
-            var ctx, serverDid, config, _a, _b, db, blobstore, pds, app, xrpcOpts, server, pod;
+            var ctx, serverDid, config, _a, _b, db, blobstore, pds, pod;
             var _c;
             return __generator(this, function (_d) {
                 switch (_d.label) {
@@ -134,27 +124,6 @@ var PolypodServer = /** @class */ (function () {
                             plcRotationKey: ctx.plcRotationKey,
                             config: config,
                         });
-                        app = express();
-                        app.set('trust proxy', true);
-                        app.use(cors());
-                        app.use(loggerMiddleware);
-                        app.use(compression.default());
-                        xrpcOpts = {
-                            validateResponse: true,
-                            payload: {
-                                jsonLimit: 100 * 1024,
-                                textLimit: 100 * 1024,
-                                blobLimit: 5 * 1024 * 1024, // 5mb
-                            },
-                        };
-                        server = createServer(xrpcOpts);
-                        server = API.default(server, pds.ctx);
-                        server = inProcessAppView.default(server, pds.ctx);
-                        app.use(basicRoutes.createRouter(pds.ctx));
-                        app.use(wellKnown.createRouter(pds.ctx));
-                        app.use(server.xrpc.router);
-                        app.use(error.handler);
-                        pds.app = app;
                         pod = new PolypodServer({
                             ctx: ctx,
                             pds: pds,
@@ -225,7 +194,18 @@ var PolypodServer = /** @class */ (function () {
     };
     PolypodServer.prototype.setupApplications = function () {
         return __awaiter(this, void 0, void 0, function () {
+            // --- Ping method and own XPRC server
+            // XXX this is not the signature that we're aiming for
+            function ping(ctx) {
+                return {
+                    encoding: 'application/json',
+                    body: { message: ctx.params.message },
+                };
+            }
             return __generator(this, function (_a) {
+                // we add straight to the PDS
+                this.pds.xrpc.addLexicon(pingLexicon);
+                this.pds.xrpc.method(pingLexicon.id, ping);
                 return [2 /*return*/];
             });
         });

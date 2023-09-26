@@ -33,7 +33,10 @@ and other stuff that's too new for anyone to know how it'll play out.
 ## Running This Thing
 
 - `npm install` (or whichever one you love the most) as per usual
-- it expects Pg server running localhost with databases called `polypod` and `polypod-test`
-- all the PDS passwords are `hunter2` — if you run this in production somehow, you know what's coming
+- Run `./patch-pds-install.js`. Note that (because of how the ATProto code is set up and because the
+  JS dev environment is a hellish landscape) what this does is that it goes inside `node_modules` and
+  patches dependencies.
+- It expects Pg server running localhost with databases called `polypod` and `polypod-test`.
+- All the PDS passwords are `hunter2` — if you run this in production somehow, you know what's coming
 
 ![polypody](polypody.jpg)
