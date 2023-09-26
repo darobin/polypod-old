@@ -39,10 +39,12 @@ import { join } from 'path';
 import { randomStr } from '@atproto/crypto';
 import { ServerConfig, Database, DiskBlobStore, PDS } from '@atproto/pds';
 import { Client as PlcClient } from '@did-plc/lib';
+import common from '@atproto/common-web';
 import { subsystemLogger } from '@atproto/common';
 import AppContext from './lib/context.js';
 import pingLexicon from './lexicons/network.polypod.ping.js';
 var logger = subsystemLogger('polypod');
+var DAY = common.DAY, HOUR = common.HOUR;
 var PolypodServer = /** @class */ (function () {
     function PolypodServer(opts) {
         this.ctx = opts.ctx;
@@ -50,12 +52,11 @@ var PolypodServer = /** @class */ (function () {
     }
     PolypodServer.create = function (opts) {
         return __awaiter(this, void 0, void 0, function () {
-            var ctx, serverDid, config, _a, _b, db, blobstore, pds, pod;
-            var _c;
-            return __generator(this, function (_d) {
-                switch (_d.label) {
+            var ctx, serverDid, config, _a, db, blobstore, pds, pod;
+            var _b;
+            return __generator(this, function (_c) {
+                switch (_c.label) {
                     case 0:
-                        process.env.TLS = '0'; // otherwise this will force the scheme to https
                         ctx = new AppContext({
                             blobDir: opts.blobDir,
                             keyDir: opts.keyDir,
@@ -69,10 +70,11 @@ var PolypodServer = /** @class */ (function () {
                         });
                         return [4 /*yield*/, this.getServerDID(ctx)];
                     case 1:
-                        serverDid = _d.sent();
-                        _b = (_a = ServerConfig).readEnv;
-                        _c = {
+                        serverDid = _c.sent();
+                        _a = ServerConfig.bind;
+                        _b = {
                             debugMode: true,
+                            scheme: 'http',
                             port: ctx.port,
                             hostname: 'pod.berjon.bast',
                             blobstoreLocation: ctx.blobDir,
@@ -83,6 +85,10 @@ var PolypodServer = /** @class */ (function () {
                             adminPassword: 'hunter2',
                             moderatorPassword: 'hunter2',
                             triagePassword: 'hunter2',
+                            version: '0.0.0',
+                            didCacheStaleTTL: HOUR,
+                            didCacheMaxTTL: DAY,
+                            rateLimitsEnabled: false,
                             inviteRequired: false,
                             userInviteInterval: null,
                             userInviteEpoch: 0,
@@ -102,21 +108,22 @@ var PolypodServer = /** @class */ (function () {
                         };
                         return [4 /*yield*/, randomStr(32, 'base32')];
                     case 2:
-                        config = _b.apply(_a, [(_c.dbTxLockNonce = _d.sent(),
-                                // bskyAppViewEndpoint?: string // XXX we'll see what we do here
+                        config = new (_a.apply(ServerConfig, [void 0, (_b.dbTxLockNonce = _c.sent(),
+                                // XXX see dev-env for a more complete implementation that includes an AppView
+                                _b.bskyAppViewEndpoint = 'http://fake_address',
+                                _b.bskyAppViewDid = 'did:example:fake',
+                                _b.bskyAppViewCdnUrlPattern = 'http://cdn.appview.com/%s/%s/%s',
                                 // bskyAppViewModeration?: boolean
-                                // bskyAppViewDid?: string
                                 // bskyAppViewProxy: boolean
-                                // bskyAppViewCdnUrlPattern?: string
-                                _c.crawlersToNotify = [],
-                                _c)]);
+                                _b.crawlersToNotify = [],
+                                _b)]))();
                         db = Database.postgres({ url: config.dbPostgresUrl, schema: config.dbPostgresSchema });
                         return [4 /*yield*/, db.migrateToLatestOrThrow()];
                     case 3:
-                        _d.sent();
+                        _c.sent();
                         return [4 /*yield*/, DiskBlobStore.create(config.blobstoreLocation, config.blobstoreTmp)];
                     case 4:
-                        blobstore = _d.sent();
+                        blobstore = _c.sent();
                         pds = PDS.create({
                             db: db,
                             blobstore: blobstore,
@@ -130,7 +137,7 @@ var PolypodServer = /** @class */ (function () {
                         });
                         return [4 /*yield*/, pod.setupApplications()];
                     case 5:
-                        _d.sent();
+                        _c.sent();
                         return [2 /*return*/, pod];
                 }
             });

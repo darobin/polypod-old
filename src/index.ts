@@ -7,12 +7,14 @@ import { HandlerAuth, HandlerInput, Params } from '@atproto/xrpc-server';
 import { Keypair, randomStr } from '@atproto/crypto';
 import { ServerConfig, Database, DiskBlobStore, PDS } from '@atproto/pds';
 import { Client as PlcClient } from '@did-plc/lib';
+import common from '@atproto/common-web'
 import { subsystemLogger } from '@atproto/common';
 
 import AppContext from './lib/context.js';
 import pingLexicon from './lexicons/network.polypod.ping.js';
 
 const logger: ReturnType<typeof subsystemLogger> = subsystemLogger('polypod');
+const { DAY, HOUR } = common;
 
 export default class PolypodServer {
   public ctx: AppContext;
@@ -34,7 +36,6 @@ export default class PolypodServer {
     plcURL: string,
     port?: number,
   }): Promise<PolypodServer> {
-    process.env.TLS = '0'; // otherwise this will force the scheme to https
     const ctx = new AppContext({
       blobDir: opts.blobDir,
       keyDir: opts.keyDir,
@@ -48,8 +49,9 @@ export default class PolypodServer {
     });
 
     const serverDid = await this.getServerDID(ctx);
-    const config = ServerConfig.readEnv({
+    const config = new ServerConfig({
       debugMode: true,
+      scheme: 'http',
       port: ctx.port,
       hostname: 'pod.berjon.bast',
       blobstoreLocation: ctx.blobDir,
@@ -60,6 +62,10 @@ export default class PolypodServer {
       adminPassword: 'hunter2',
       moderatorPassword: 'hunter2',
       triagePassword: 'hunter2',
+      version: '0.0.0',
+      didCacheStaleTTL: HOUR,
+      didCacheMaxTTL: DAY,
+      rateLimitsEnabled: false,
       inviteRequired: false,
       userInviteInterval: null,
       userInviteEpoch: 0,
@@ -77,11 +83,12 @@ export default class PolypodServer {
       repoBackfillLimitMs: 1000 * 60 * 60,
       sequencerLeaderLockId: uniqueLockId(),
       dbTxLockNonce: await randomStr(32, 'base32'),
-      // bskyAppViewEndpoint?: string // XXX we'll see what we do here
+      // XXX see dev-env for a more complete implementation that includes an AppView
+      bskyAppViewEndpoint: 'http://fake_address',
+      bskyAppViewDid: 'did:example:fake',
+      bskyAppViewCdnUrlPattern: 'http://cdn.appview.com/%s/%s/%s',
       // bskyAppViewModeration?: boolean
-      // bskyAppViewDid?: string
       // bskyAppViewProxy: boolean
-      // bskyAppViewCdnUrlPattern?: string
       crawlersToNotify: [],
     });
 

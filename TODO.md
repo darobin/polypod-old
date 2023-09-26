@@ -1,18 +1,19 @@
 
 - [ ] Milestone: Integrated Hack
-  - [ ] PLC server
+  - [x] PLC server
     - [x] run whatever migrations and settings are needed as seen in dev-env and https://github.com/bluesky-social/pds (save as command for readme)
     - [x] integrate plc server directly into the main process and run from there (just like PDS)
-    - [ ] run whatever is needed to create a few users (save the command too)
     - [x] add some basic tests to validate that it works
-  - [ ] PDS server
-    - [ ] run whatever migrations and settings are needed as seen in dev-env and https://github.com/bluesky-social/pds (save as command for readme)
+  - [x] PDS server
+    - [x] run whatever migrations and settings are needed as seen in dev-env and https://github.com/bluesky-social/pds (save as command for readme)
     - [x] integrate directly
     - [x] add some basic tests to validate that it works
+  - [ ] Need to run a BGS?
+  - [ ] Need to run an app view?
   - [ ] Ping Method
-    - [ ] move the ping method to be exposed via the pds (use pds.ctx to access the APIs)
+    - [x] move the ping method to be exposed via the pds (use pds.ctx to access the APIs)
     - [ ] wrap the implementation with very minimal access so it's as safe as possible, no direct access as current
-    - [ ] test!
+    - [x] test!
   - [ ] HSV (Hyped Social Venue) Methods
     - [ ] set up just the minimal set of methods for the simplest social posting of colours
     - [ ] same wrapping, but need to add more access
